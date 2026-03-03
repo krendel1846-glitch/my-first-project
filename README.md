@@ -1,14 +1,12 @@
 # Logistics pricing engine
 
-Implementation of the business logic you described as a reusable Python module.
 
-## Run
 
 ```bash
 python -m unittest -v
 ```
 
-## Use
+
 
 ```python
 from logistics_engine import LogisticsCalculator

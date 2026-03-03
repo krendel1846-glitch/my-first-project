@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logistics Calculator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Калькулятор логистики (LCL / FCL)</h1>
+      <p class="subtitle">Локальный запуск в браузере для быстрой проверки расчётов.</p>
+
+      <section class="card">
+        <h2>Входные параметры</h2>
+        <div class="grid">
+          <label>
+            Вес партии (кг)
+            <input id="weightKg" type="number" min="0" step="1" value="12500" />
+          </label>
+          <label>
+            Объём партии (м³)
+            <input id="volumeM3" type="number" min="0" step="0.01" value="22" />
+          </label>
+          <label>
+            Курс USD/RUB
+            <input id="usdRubRate" type="number" min="0.0001" step="0.01" value="92.5" />
+          </label>
+        </div>
+
+        <button id="calculateBtn">Рассчитать</button>
+      </section>
+
+      <section class="card" id="resultCard" hidden>
+        <h2>Результат</h2>
+        <div id="result"></div>
+      </section>
+    </main>
+
+    <script src="calculator.js"></script>
+  </body>
+</html>
