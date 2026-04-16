@@ -1,17 +1,16 @@
-const CACHE_NAME = 'mixology-pro-v4';
+const CACHE_NAME = 'mixology-pro-v5';
 const APP_SHELL = [
   './',
-  './?source=pwa&v=4',
+  './?source=pwa&v=5',
   './index.html',
-  './manifest.webmanifest?v=4',
-  './assets/launch-header.png?v=4',
-  './icons/icon-120.png?v=4',
-  './icons/icon-152.png?v=4',
-  './icons/icon-167.png?v=4',
-  './icons/icon-180.png?v=4',
-  './icons/icon-192.png?v=4',
-  './icons/icon-512.png?v=4',
-  './icons/icon-1024.png?v=4'
+  './manifest.webmanifest?v=5',
+  './icons/icon-120-v5.png',
+  './icons/icon-152-v5.png',
+  './icons/icon-167-v5.png',
+  './icons/icon-180-v5.png',
+  './icons/icon-192-v5.png',
+  './icons/icon-512-v5.png',
+  './icons/icon-1024-v5.png'
 ];
 
 self.addEventListener('install', event => {
