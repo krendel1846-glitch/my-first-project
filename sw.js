@@ -1,19 +1,21 @@
-const CACHE_NAME = 'mixology-pro-v3';
+const CACHE_NAME = 'mixology-pro-v4';
 const APP_SHELL = [
   './',
-  './?source=pwa',
+  './?source=pwa&v=4',
   './index.html',
-  './manifest.webmanifest?v=3',
-  './icons/icon-120.png?v=3',
-  './icons/icon-152.png?v=3',
-  './icons/icon-167.png?v=3',
-  './icons/icon-180.png?v=3',
-  './icons/icon-192.png?v=3',
-  './icons/icon-512.png?v=3'
+  './manifest.webmanifest?v=4',
+  './assets/launch-header.png?v=4',
+  './icons/icon-120.png?v=4',
+  './icons/icon-152.png?v=4',
+  './icons/icon-167.png?v=4',
+  './icons/icon-180.png?v=4',
+  './icons/icon-192.png?v=4',
+  './icons/icon-512.png?v=4',
+  './icons/icon-1024.png?v=4'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).catch(() => null));
   self.skipWaiting();
 });
 

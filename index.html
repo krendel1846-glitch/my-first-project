@@ -10,14 +10,14 @@
 <meta name="apple-mobile-web-app-title" content="Mixology Pro" />
 <meta name="application-name" content="Mixology Pro" />
 <meta name="mobile-web-app-capable" content="yes" />
-<link rel="manifest" href="./manifest.webmanifest?v=3" />
-<link rel="apple-touch-icon" sizes="120x120" href="./icons/icon-120.png?v=3" />
-<link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152.png?v=3" />
-<link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167.png?v=3" />
-<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png?v=3" />
-<link rel="apple-touch-icon-precomposed" href="./icons/icon-180.png?v=3" />
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=3" />
-<link rel="shortcut icon" href="./icons/icon-192.png?v=3" />
+<link rel="manifest" href="./manifest.webmanifest?v=4" />
+<link rel="apple-touch-icon" sizes="120x120" href="./icons/icon-120.png?v=4" />
+<link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152.png?v=4" />
+<link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167.png?v=4" />
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png?v=4" />
+<link rel="apple-touch-icon-precomposed" href="./icons/icon-180.png?v=4" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=4" />
+<link rel="shortcut icon" href="./icons/icon-192.png?v=4" />
 <style>
 :root{
   --primary:#6366f1;--primary-dark:#4f46e5;--secondary:#ec4899;--bg:#f8fafc;--surface:#ffffff;
@@ -33,6 +33,11 @@ p{color:var(--text-light)}
 .header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);box-shadow:var(--shadow);padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
 .logo{font-weight:900;font-size:1.22rem;background:linear-gradient(135deg,var(--primary),var(--secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .subtitle{font-size:.78rem;color:var(--text-light);margin-top:2px}
+.hero-banner{position:relative;margin:4px 0 16px;border-radius:24px;overflow:hidden;box-shadow:var(--shadow-lg);background:#0f172a}
+.hero-banner img{display:block;width:100%;height:auto;max-height:320px;object-fit:cover}
+.hero-overlay{position:absolute;inset:auto 0 0 0;padding:18px 20px;background:linear-gradient(180deg,rgba(15,23,42,0) 0%,rgba(15,23,42,.72) 100%);color:#fff}
+.hero-title{font-size:1.1rem;font-weight:900;margin-bottom:4px}
+.hero-subtitle{font-size:.88rem;color:rgba(255,255,255,.88);max-width:720px}
 .nav{display:flex;gap:10px;overflow:auto;padding:16px 0;scrollbar-width:none}
 .nav::-webkit-scrollbar{display:none}
 .nav-btn{flex:0 0 auto;padding:12px 18px;border-radius:999px;border:1px solid var(--border);background:var(--surface);font-weight:700;color:var(--text-light);cursor:pointer;touch-action:manipulation}
@@ -148,6 +153,10 @@ pre.json-preview{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-ra
   .photo-upload-grid{grid-template-columns:1fr}
   .photo-match-top{flex-direction:column}
   .text-right{text-align:left}
+  .hero-banner{margin-top:2px;border-radius:18px}
+  .hero-overlay{padding:14px 16px}
+  .hero-title{font-size:1rem}
+  .hero-subtitle{font-size:.82rem}
 }
 @media print{
   .nav,.no-print,.header{display:none!important}
@@ -165,6 +174,15 @@ pre.json-preview{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-ra
 </header>
 
 <div class="container">
+
+  <div class="hero-banner">
+    <img src="./assets/launch-header.png?v=4" alt="Кальянная миксология" />
+    <div class="hero-overlay">
+      <div class="hero-title">Кальянная миксология</div>
+      <div class="hero-subtitle">Умный локальный генератор миксов, база вкусов, импорт и поиск табака по фотографии.</div>
+    </div>
+  </div>
+
   <nav class="nav no-print">
     <button type="button" class="nav-btn active" data-tab="settings" onclick="app.switchTab('settings', this)">⚙️ Параметры</button>
     <button type="button" class="nav-btn" data-tab="flavors" onclick="app.switchTab('flavors', this)">🧪 Выбор вкусов</button>
@@ -1186,7 +1204,7 @@ const app = {
         </div>
         <div class="footer-note" style="margin-top:10px">Запрос: ${queryText}</div>
         <div class="photo-actions" style="margin-top:12px">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="app.addFlavorToFirstEmptySlot(${JSON.stringify(String(item.flavor.id))});app.switchTab('flavors', document.querySelector('.nav-btn[data-tab=\'flavors\']'))">Добавить в генератор</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="app.addPhotoMatchToGenerator(${Number(item.flavor.id) || 0})">Добавить в генератор</button>
         </div>
       </div>
     `).join('');
@@ -1289,6 +1307,10 @@ const app = {
     this.syncFlavorSlotUI(target);
     this.closeAllFlavorSearch();
     this.updateSlotsInfo();
+  },
+  addPhotoMatchToGenerator(id) {
+    this.addFlavorToFirstEmptySlot(id);
+    this.switchTab('flavors', document.querySelector('.nav-btn[data-tab="flavors"]'));
   },
   bindStaticEvents() {
     return;
@@ -1593,11 +1615,11 @@ const app = {
           return;
         }
         this.renderResults(results.slice(0, resultCount), { mode, style, coolingLevel });
-        this.switchTab('results', document.querySelector('[data-tab='results']'));
+        this.switchTab('results', document.querySelector('.nav-btn[data-tab="results"]'));
       } catch (error) {
         console.error('Generation failed:', error);
         resultsArea.innerHTML = '<div class="card" style="border-color:var(--danger);color:var(--danger)">Ошибка генерации: ' + this.escapeHtml(error && error.message ? error.message : String(error)) + '</div>';
-        this.switchTab('results', document.querySelector('[data-tab='results']'));
+        this.switchTab('results', document.querySelector('.nav-btn[data-tab="results"]'));
       }
     }, 50);
   },
@@ -1611,11 +1633,11 @@ const app = {
     try {
       const results = this.buildManualResults(selected, style, coolingLevel, fixedComposition, true);
       this.renderResults(results, { mode:'manual', style, coolingLevel });
-      this.switchTab('results', document.querySelector('[data-tab='results']'));
+      this.switchTab('results', document.querySelector('.nav-btn[data-tab="results"]'));
     } catch (error) {
       console.error('Alternative generation failed:', error);
       document.getElementById('results-area').innerHTML = '<div class="card" style="border-color:var(--danger);color:var(--danger)">Ошибка генерации альтернатив: ' + this.escapeHtml(error && error.message ? error.message : String(error)) + '</div>';
-      this.switchTab('results', document.querySelector('[data-tab='results']'));
+      this.switchTab('results', document.querySelector('.nav-btn[data-tab="results"]'));
     }
   },
 
@@ -2816,7 +2838,7 @@ if (document.readyState === 'loading') {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw.js?v=3', { scope: './' }).catch(function (err) {
+    navigator.serviceWorker.register('./sw.js?v=4', { scope: './' }).catch(function (err) {
       console.warn('Service worker registration failed:', err);
     });
   });
