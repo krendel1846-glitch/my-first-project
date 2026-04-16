@@ -1,11 +1,15 @@
-const CACHE_NAME = 'mixology-pro-v1';
+const CACHE_NAME = 'mixology-pro-v3';
 const APP_SHELL = [
   './',
+  './?source=pwa',
   './index.html',
-  './manifest.webmanifest',
-  './icons/icon-180.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './manifest.webmanifest?v=3',
+  './icons/icon-120.png?v=3',
+  './icons/icon-152.png?v=3',
+  './icons/icon-167.png?v=3',
+  './icons/icon-180.png?v=3',
+  './icons/icon-192.png?v=3',
+  './icons/icon-512.png?v=3'
 ];
 
 self.addEventListener('install', event => {
@@ -24,7 +28,6 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-  // HTML navigations: network first, offline fallback to cached shell
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
@@ -38,7 +41,6 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Same-origin and CDN assets: stale-while-revalidate
   event.respondWith(
     caches.match(req).then(cached => {
       const fetchPromise = fetch(req).then(response => {

@@ -3,7 +3,8 @@
   "short_name": "Mixology Pro",
   "description": "Локальный генератор кальянных миксов с базой вкусов, импортом и фото-поиском.",
   "lang": "ru",
-  "start_url": "./",
+  "id": "./?v=3",
+  "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -11,24 +12,39 @@
   "theme_color": "#6366f1",
   "icons": [
     {
-      "src": "./icons/icon-192.png",
+      "src": "./icons/icon-120.png?v=3",
+      "sizes": "120x120",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-152.png?v=3",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-167.png?v=3",
+      "sizes": "167x167",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-180.png?v=3",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-192.png?v=3",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icons/icon-512.png",
+      "src": "./icons/icon-512.png?v=3",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icons/icon-180.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    },
-    {
-      "src": "./icons/icon-1024.png",
+      "src": "./icons/icon-1024.png?v=3",
       "sizes": "1024x1024",
       "type": "image/png"
     }

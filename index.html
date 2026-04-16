@@ -8,10 +8,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Mixology Pro" />
+<meta name="application-name" content="Mixology Pro" />
 <meta name="mobile-web-app-capable" content="yes" />
-<link rel="manifest" href="./manifest.webmanifest" />
-<link rel="apple-touch-icon" href="./icons/icon-180.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+<link rel="manifest" href="./manifest.webmanifest?v=3" />
+<link rel="apple-touch-icon" sizes="120x120" href="./icons/icon-120.png?v=3" />
+<link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152.png?v=3" />
+<link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167.png?v=3" />
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png?v=3" />
+<link rel="apple-touch-icon-precomposed" href="./icons/icon-180.png?v=3" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=3" />
+<link rel="shortcut icon" href="./icons/icon-192.png?v=3" />
 <style>
 :root{
   --primary:#6366f1;--primary-dark:#4f46e5;--secondary:#ec4899;--bg:#f8fafc;--surface:#ffffff;
@@ -160,16 +166,25 @@ pre.json-preview{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-ra
 
 <div class="container">
   <nav class="nav no-print">
-    <button type="button" class="nav-btn active" data-tab="generator" onclick="app.switchTab('generator', this)">🔮 Генератор</button>
+    <button type="button" class="nav-btn active" data-tab="settings" onclick="app.switchTab('settings', this)">⚙️ Параметры</button>
+    <button type="button" class="nav-btn" data-tab="flavors" onclick="app.switchTab('flavors', this)">🧪 Выбор вкусов</button>
+    <button type="button" class="nav-btn" data-tab="results" onclick="app.switchTab('results', this)">📊 Результаты</button>
     <button type="button" class="nav-btn" data-tab="database" onclick="app.switchTab('database', this)">📚 База вкусов</button>
     <button type="button" class="nav-btn" data-tab="import" onclick="app.switchTab('import', this)">📥 Импорт</button>
     <button type="button" class="nav-btn" data-tab="photo" onclick="app.switchTab('photo', this)">📷 Поиск по фото</button>
     <button type="button" class="nav-btn" data-tab="favorites" onclick="app.switchTab('favorites', this)">⭐ Избранное</button>
   </nav>
 
-  <section id="tab-generator" class="tab-content">
+  <section id="tab-settings" class="tab-content">
     <div class="card">
-      <h2>Параметры генерации</h2>
+      <div class="flex justify-between" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2>Параметры генерации</h2>
+          <p class="muted text-sm" style="margin-top:6px">Сначала задай логику генерации: режим, количество компонентов, стиль микса, уровень холода и глубину перебора.</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="app.switchTab('flavors', document.querySelector('.nav-btn[data-tab=\'flavors\']'))">Перейти к выбору вкусов →</button>
+      </div>
+
       <div class="grid grid-3">
         <div class="form-group">
           <label>Режим</label>
@@ -232,6 +247,22 @@ pre.json-preview{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-ra
         </div>
       </div>
 
+      <div class="notice" style="margin-top:16px">
+        Схема работы теперь разнесена по вкладкам: <strong>Параметры</strong> → <strong>Выбор вкусов</strong> → <strong>Результаты</strong>.
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-flavors" class="tab-content hidden">
+    <div class="card">
+      <div class="flex justify-between" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2>Выбор вкусов</h2>
+          <p class="muted text-sm" style="margin-top:6px">В ручном режиме выбери 2–5 вкусов. В авто-режиме эту вкладку можно пропустить, но при желании ты можешь задать базовый набор вручную.</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="app.switchTab('settings', document.querySelector('.nav-btn[data-tab=\'settings\']'))">← Назад к параметрам</button>
+      </div>
+
       <div class="form-group">
         <label>Выбранные вкусы</label>
         <p class="muted text-sm" style="margin-bottom:10px">Если режим ручной — программа строит несколько разных концепций на одном и том же наборе 2–5 вкусов: меняет тело, роли и процентовки, а не просто перебирает одни и те же схемы. Если режим авто — подбирает логически сильные сочетания из базы.</p>
@@ -244,13 +275,26 @@ pre.json-preview{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-ra
       </div>
 
       <div class="grid grid-2" style="margin-top:16px">
-        <button type="button" class="btn btn-primary" id="generate-btn" onclick="app.generate()">🚀 Сгенерировать и оценить</button>
-        <button type="button" class="btn btn-secondary" id="alternatives-btn" onclick="app.generateAlternatives()">🔁 Построить альтернативы из тех же вкусов</button>
+        <button type="button" class="btn btn-primary" id="generate-btn" onclick="app.generate()">🚀 Сгенерировать и открыть результаты</button>
+        <button type="button" class="btn btn-secondary" id="alternatives-btn" onclick="app.generateAlternatives()">🔁 Построить альтернативы и открыть результаты</button>
       </div>
-      <div class="footer-note">Движок полностью локальный: без API, без сервера. Совместимость считается по правилам ролей, телу микса, сенсорике, рискам подавления и читаемости.</div>
+      <div class="footer-note">После запуска ты автоматически перейдешь во вкладку «Результаты».</div>
     </div>
+  </section>
 
-    <div id="results-area"></div>
+  <section id="tab-results" class="tab-content hidden">
+    <div class="card">
+      <div class="flex justify-between" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2>Результаты генерации</h2>
+          <p class="muted text-sm" style="margin-top:6px">Здесь появятся лучшие миксы, разбор совместимости, роли, риски и рекомендации по доработке.</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="app.switchTab('flavors', document.querySelector('.nav-btn[data-tab=\'flavors\']'))">Изменить вкусы</button>
+      </div>
+      <div id="results-area">
+        <div class="notice">Сначала выбери параметры и вкусы, затем нажми «Сгенерировать и открыть результаты».</div>
+      </div>
+    </div>
   </section>
 
   <section id="tab-database" class="tab-content hidden">
@@ -1142,7 +1186,7 @@ const app = {
         </div>
         <div class="footer-note" style="margin-top:10px">Запрос: ${queryText}</div>
         <div class="photo-actions" style="margin-top:12px">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="app.addFlavorToFirstEmptySlot(${JSON.stringify(String(item.flavor.id))});app.switchTab('generator', document.querySelector('.nav-btn[data-tab=\'generator\']'))">Добавить в генератор</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="app.addFlavorToFirstEmptySlot(${JSON.stringify(String(item.flavor.id))});app.switchTab('flavors', document.querySelector('.nav-btn[data-tab=\'flavors\']'))">Добавить в генератор</button>
         </div>
       </div>
     `).join('');
@@ -1474,7 +1518,7 @@ const app = {
       this.addFlavorSlot(id);
     }
     this.updateSlotsInfo();
-    this.switchTab('generator', document.querySelector('[data-tab="generator"]'));
+    this.switchTab('flavors', document.querySelector('[data-tab="flavors"]'));
   },
 
   deleteFlavor(id) {
@@ -1549,9 +1593,11 @@ const app = {
           return;
         }
         this.renderResults(results.slice(0, resultCount), { mode, style, coolingLevel });
+        this.switchTab('results', document.querySelector('[data-tab='results']'));
       } catch (error) {
         console.error('Generation failed:', error);
         resultsArea.innerHTML = '<div class="card" style="border-color:var(--danger);color:var(--danger)">Ошибка генерации: ' + this.escapeHtml(error && error.message ? error.message : String(error)) + '</div>';
+        this.switchTab('results', document.querySelector('[data-tab='results']'));
       }
     }, 50);
   },
@@ -1565,9 +1611,11 @@ const app = {
     try {
       const results = this.buildManualResults(selected, style, coolingLevel, fixedComposition, true);
       this.renderResults(results, { mode:'manual', style, coolingLevel });
+      this.switchTab('results', document.querySelector('[data-tab='results']'));
     } catch (error) {
       console.error('Alternative generation failed:', error);
       document.getElementById('results-area').innerHTML = '<div class="card" style="border-color:var(--danger);color:var(--danger)">Ошибка генерации альтернатив: ' + this.escapeHtml(error && error.message ? error.message : String(error)) + '</div>';
+      this.switchTab('results', document.querySelector('[data-tab='results']'));
     }
   },
 
@@ -2768,7 +2816,7 @@ if (document.readyState === 'loading') {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function (err) {
+    navigator.serviceWorker.register('./sw.js?v=3', { scope: './' }).catch(function (err) {
       console.warn('Service worker registration failed:', err);
     });
   });
