@@ -26,6 +26,11 @@
       "src": "./icons/icon-180.png",
       "sizes": "180x180",
       "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
     }
   ]
 }
