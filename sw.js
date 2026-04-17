@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hookah-mixology-v11';
+const CACHE_NAME = 'hookah-mixology-v12';
 const APP_SHELL = [
   './',
   './?source=pwa&v=10',

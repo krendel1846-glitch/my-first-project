@@ -777,18 +777,34 @@ const app = {
 
   normalizePhotoOCRText(rawText) {
     return this.normalizeComparableText(rawText)
+      .replace(/[|!]/g, 'i')
+      .replace(/(?<=\w)0(?=\w)/g, 'o')
+      .replace(/(?<=\w)1(?=\w)/g, 'l')
+      .replace(/(?<=\w)5(?=\w)/g, 's')
+      .replace(/rn/g, 'm')
+      .replace(/vv/g, 'w')
       .replace(/blak+\s*burn/g, 'blackburn')
       .replace(/bla[kx]+\s*burn/g, 'blackburn')
       .replace(/black\s*bun+n?/g, 'blackburn')
       .replace(/black\s*bur[nm]/g, 'blackburn')
+      .replace(/black\s*burn/g, 'blackburn')
+      .replace(/0verdose/g, 'overdose')
+      .replace(/over\s*d0se/g, 'overdose')
+      .replace(/over\s*dose/g, 'overdose')
+      .replace(/0ver\s*dose/g, 'overdose')
       .replace(/must\s*h[ae]ve/g, 'must have')
+      .replace(/musthave/g, 'must have')
       .replace(/dark\s*side/g, 'darkside')
       .replace(/deu5/g, 'deus')
+      .replace(/elem?ent/g, 'element')
       .replace(/l[ei]monad[ea]/g, 'lemonade')
       .replace(/lem0nade/g, 'lemonade')
       .replace(/pearr/g, 'pear')
+      .replace(/mal1bu/g, 'malibu')
       .replace(/\bblakburn\b/g, 'blackburn')
       .replace(/\bblack burn\b/g, 'blackburn')
+      .replace(/\bover dose\b/g, 'overdose')
+      .replace(/\boverd0se\b/g, 'overdose')
       .replace(/\s+/g, ' ')
       .trim();
   },
@@ -809,11 +825,12 @@ const app = {
       }
     });
     const aliases = {
-      'blackburn': ['black burn','blakburn','black bun','black bum','black burm'],
-      'must have': ['musthave','must hve','must hane'],
-      'darkside': ['dark side','darkslde'],
+      'blackburn': ['black burn','blakburn','black bun','black bum','black burm','black bumn','blak burn'],
+      'overdose': ['0verdose','over dose','overd0se','overdo5e','0ver dose','overdosc'],
+      'must have': ['musthave','must hve','must hane','musthawe'],
+      'darkside': ['dark side','darkslde','darksl de'],
       'deus': ['deu5','devs'],
-      'element': ['eiement','elernent'],
+      'element': ['eiement','elernent','e1ement'],
       'satyr': ['satir','satiyr'],
       'sebero': ['5ebero'],
       'bonche': ['bonhe'],
@@ -845,11 +862,24 @@ const app = {
   },
 
   getLikelyBrands(sourceText, limit = 3) {
-    return this.getBrandCatalog()
+    const ranked = this.getBrandCatalog()
       .map(entry => ({ ...entry, score: this.scoreBrandCandidate(entry, sourceText) }))
       .filter(item => item.score >= 120)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+      .sort((a, b) => b.score - a.score);
+    return ranked.slice(0, limit);
+  },
+
+  getLockedBrand(sourceText) {
+    const ranked = this.getLikelyBrands(sourceText, 3);
+    if (!ranked.length) return null;
+    const top = ranked[0];
+    const second = ranked[1] || null;
+    const gap = second ? top.score - second.score : top.score;
+    const strongExact = this.compactComparableText(sourceText).includes(top.compact);
+    if (top.score >= 300 || (top.score >= 240 && gap >= 80) || (strongExact && top.score >= 220)) {
+      return { ...top, gap };
+    }
+    return null;
   },
 
   async extractPhotoTexts(imgEl) {
@@ -857,18 +887,19 @@ const app = {
       await this.ensureExternalLib('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'Tesseract');
     }
     const tasks = [
-      { key: 'gray', label: 'Основной OCR', crop: this.state.photoCropPreset || 'full' },
-      { key: 'bw', label: 'Центр этикетки', crop: 'center' }
+      { key: 'gray', label: 'English-first OCR', crop: this.state.photoCropPreset || 'full', lang: 'eng' },
+      { key: 'bw', label: 'Fallback OCR (eng+rus)', crop: 'center', lang: 'eng+rus' }
     ];
     const previews = [];
     const textBlocks = [];
+    let bestConfidence = 0;
     for (let idx = 0; idx < tasks.length; idx++) {
       const task = tasks[idx];
       const canvas = this.preprocessPhotoToCanvas(imgEl, task.key, task.crop);
       previews.push({ label: task.label, dataUrl: canvas.toDataURL('image/png') });
       this.renderPhotoPassPreviews(previews);
       this.updatePhotoStatus(`OCR-проход ${idx + 1} из ${tasks.length}: ${task.label}…`, 'info');
-      const result = await Tesseract.recognize(canvas, 'eng+rus', {
+      const result = await Tesseract.recognize(canvas, task.lang, {
         logger: (message) => {
           if (message.status === 'recognizing text') {
             const pct = Math.round((message.progress || 0) * 100);
@@ -877,15 +908,19 @@ const app = {
         }
       });
       const rawText = String(result && result.data && result.data.text ? result.data.text : '').trim();
+      const confidence = Number(result && result.data && result.data.confidence ? result.data.confidence : 0) || 0;
+      bestConfidence = Math.max(bestConfidence, confidence);
       const normalized = this.normalizePhotoOCRText(rawText);
       if (rawText) textBlocks.push(rawText);
       if (normalized && normalized !== rawText) textBlocks.push(normalized);
-      const enoughText = this.tokenizeComparableText(normalized || rawText).length >= 2;
-      const likelyBrands = this.getLikelyBrands(normalized || rawText, 2);
-      if (likelyBrands.length && enoughText) break;
+
+      const lock = this.getLockedBrand(normalized || rawText);
+      const enoughTokens = this.tokenizeComparableText(normalized || rawText).length >= 2;
+      if (lock && (confidence >= 45 || enoughTokens)) break;
+      if (idx === 0 && confidence >= 70 && enoughTokens) break;
     }
     const merged = Array.from(new Set(textBlocks.join('\n').split(/\n+/).map(v => v.trim()).filter(Boolean))).join('\n');
-    return { text: merged, previews };
+    return { text: merged, previews, confidence: bestConfidence, lockedBrand: this.getLockedBrand(merged) };
   },
 
   scorePhotoFlavorMatch(flavor, sourceText, brandContext = null) {
@@ -952,9 +987,14 @@ const app = {
     const cleaned = this.normalizePhotoOCRText(sourceText);
     if (!cleaned || cleaned.length < 2) return [];
 
-    const likelyBrands = this.getLikelyBrands(cleaned, 3);
+    const lockedBrand = this.getLockedBrand(cleaned);
+    const likelyBrands = lockedBrand ? [lockedBrand] : this.getLikelyBrands(cleaned, 3);
+
     let candidateFlavors = this.state.flavors.slice();
-    if (likelyBrands.length) {
+    if (lockedBrand) {
+      const lockedCompact = this.compactComparableText(lockedBrand.brand);
+      candidateFlavors = this.state.flavors.filter(flavor => this.compactComparableText(flavor.brand) === lockedCompact);
+    } else if (likelyBrands.length) {
       const brandSet = new Set(likelyBrands.map(item => this.compactComparableText(item.brand)));
       candidateFlavors = this.state.flavors.filter(flavor => brandSet.has(this.compactComparableText(flavor.brand)));
       if (!candidateFlavors.length) candidateFlavors = this.state.flavors.slice();
@@ -964,14 +1004,19 @@ const app = {
       .map(flavor => {
         const brandContext = likelyBrands.find(item => this.compactComparableText(item.brand) === this.compactComparableText(flavor.brand)) || null;
         const match = this.scorePhotoFlavorMatch(flavor, cleaned, brandContext);
+        if (lockedBrand && this.compactComparableText(flavor.brand) !== this.compactComparableText(lockedBrand.brand)) {
+          match.score -= 600;
+          match.reasons = ['чужой бренд отфильтрован'];
+        }
         return {
           flavor,
           score: match.score,
           reasons: match.reasons,
-          confidence: this.clampInt(Math.min(99, Math.max(12, Math.round(match.score / 8.5))), 0, 99)
+          confidence: this.clampInt(Math.min(99, Math.max(12, Math.round(match.score / 8.5))), 0, 99),
+          lockedBrand
         };
       })
-      .filter(item => item.score >= 125)
+      .filter(item => item.score >= (lockedBrand ? 95 : 125))
       .sort((a, b) => b.score - a.score || this.getFlavorLabel(a.flavor).localeCompare(this.getFlavorLabel(b.flavor), 'ru'))
       .slice(0, limit);
   },
@@ -1021,7 +1066,9 @@ const app = {
       return;
     }
     const queryText = this.escapeHtml(sourceText || '');
-    container.innerHTML = matches.map((item, index) => `
+    const lockedBrand = matches[0] && matches[0].lockedBrand ? matches[0].lockedBrand : null;
+    const brandHint = lockedBrand ? `<div class="notice" style="margin-bottom:12px">Определён бренд: <strong>${this.escapeHtml(lockedBrand.brand)}</strong> · поиск ограничен вкусами этого бренда</div>` : '';
+    container.innerHTML = brandHint + matches.map((item, index) => `
       <div class="photo-match-card ${index === 0 ? 'best' : ''}">
         <div class="photo-match-top">
           <div>
@@ -1040,7 +1087,7 @@ const app = {
         </div>
         <div class="footer-note" style="margin-top:10px">OCR-текст: ${queryText}</div>
         <div class="photo-actions" style="margin-top:12px">
-          <button type="button" class="btn btn-primary btn-sm" onclick="app.addFlavorToFirstEmptySlot(String(item.flavor.id));app.switchTab('selector', document.querySelector(".nav-btn[data-tab='selector']"))">Это он — добавить в выбор вкусов</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="app.addFlavorToFirstEmptySlot(String(item.flavor.id));app.switchTab('selector', document.querySelector(&quot;.nav-btn[data-tab='selector']&quot;))">Это он — добавить в выбор вкусов</button>
         </div>
       </div>
     `).join('');
@@ -1076,14 +1123,16 @@ const app = {
       return;
     }
     try {
-      this.updatePhotoStatus('Запускаю быстрый OCR: распознаю бренд и название вкуса…', 'info');
+      this.updatePhotoStatus('Запускаю English-first OCR: сначала ищу бренд, потом вкус…', 'info');
       const extraction = await this.extractPhotoTexts(preview);
       this.renderPhotoPassPreviews(extraction.previews);
       textArea.value = extraction.text;
       const matches = this.findPhotoMatches(extraction.text, 6);
       this.renderPhotoMatches(matches, extraction.text);
       if (matches.length) {
-        this.updatePhotoStatus(`Готово. Лучшее совпадение: ${matches[0].flavor.brand} ${matches[0].flavor.name}.`, 'success');
+        const top = matches[0];
+        const brandMsg = extraction.lockedBrand ? ` Бренд: ${extraction.lockedBrand.brand}.` : '';
+        this.updatePhotoStatus(`Готово.${brandMsg} Лучшее совпадение: ${top.flavor.brand} ${top.flavor.name}.`, 'success');
       } else {
         this.updatePhotoStatus('OCR отработал, но уверенных совпадений нет. Попробуй режим «Центр этикетки» или вручную подправь текст.', 'error');
       }
