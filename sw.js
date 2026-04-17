@@ -1,16 +1,17 @@
-const CACHE_NAME = 'hookah-mixology-v7';
+const CACHE_NAME = 'hookah-mixology-v10';
 const APP_SHELL = [
   './',
-  './?source=pwa&v=5',
+  './?source=pwa&v=10',
   './index.html',
-  './manifest.webmanifest?v=5',
+  './manifest.webmanifest?v=10',
   './icons/icon-120-v5.png',
   './icons/icon-152-v5.png',
   './icons/icon-167-v5.png',
   './icons/icon-180-v5.png',
   './icons/icon-192-v5.png',
   './icons/icon-512-v5.png',
-  './icons/icon-1024-v5.png'
+  './icons/icon-1024-v5.png',
+  './assets/banner-premium.png'
 ];
 
 self.addEventListener('install', event => {
