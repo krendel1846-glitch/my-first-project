@@ -4,13 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Hookah Mixology Engine Pro</title>
-<meta name="theme-color" content="#6366f1" />
+<meta name="theme-color" content="#070b16" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Кальянная миксология" />
 <meta name="application-name" content="Кальянная миксология" />
 <meta name="mobile-web-app-capable" content="yes" />
-<link rel="manifest" href="./manifest.webmanifest?v=5" />
+<link rel="manifest" href="./manifest.webmanifest?v=13" />
 <link rel="apple-touch-icon" sizes="120x120" href="./icons/icon-120-v5.png" />
 <link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152-v5.png" />
 <link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167-v5.png" />
@@ -180,16 +180,33 @@ pre.json-preview{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-ra
   body{background:#fff;padding:0}
   .card{box-shadow:none}
 }
+
+
+/* v13 dark premium neon overrides */
+:root{--primary:#4dd7ff;--primary-dark:#1fa3ff;--secondary:#9b5cff;--accent-hot:#ff7a45;--accent-lime:#c8ff47;--bg:#070b16;--surface:rgba(13,18,34,.72);--text:#f3f7ff;--text-light:#a4b3d9;--border:rgba(126,159,255,.18);--success:#4dffb6;--warning:#ffb347;--danger:#ff6d7a;--info:#56d6ff;--shadow:0 10px 35px rgba(0,0,0,.35);--shadow-lg:0 18px 60px rgba(0,0,0,.45)}
+html,body{min-height:100%;background:radial-gradient(circle at 14% 12%, rgba(24,111,255,.18), transparent 28%),radial-gradient(circle at 84% 12%, rgba(180,71,255,.16), transparent 26%),radial-gradient(circle at 50% 110%, rgba(255,126,69,.10), transparent 30%),linear-gradient(180deg,#0a1020 0%, #060913 42%, #04070f 100%);color:var(--text)}
+body{position:relative;overflow-x:hidden;padding-bottom:100px}body::before,body::after{content:"";position:fixed;pointer-events:none;z-index:0;filter:blur(28px);opacity:.35}body::before{left:-8vw;top:12vh;width:34vw;height:55vh;background:radial-gradient(circle, rgba(86,214,255,.18), transparent 62%)}body::after{right:-10vw;top:24vh;width:36vw;height:48vh;background:radial-gradient(circle, rgba(182,91,255,.14), transparent 60%)}
+.container{position:relative;z-index:1;max-width:1160px;padding:16px 14px}.container.app-shell{padding-top:10px}p,.muted,.text-sm,.text-xs,.slot-hint,.footer-note,.search-option-meta,.stat-label{color:var(--text-light)}
+.card,.stat-card,.flavor-role-card,.score-line,.risk-item,.action-item,.flavor-item,.photo-pass-card,.photo-match-card{background:linear-gradient(180deg, rgba(18,24,46,.82) 0%, rgba(10,14,28,.82) 100%);border:1px solid rgba(124,145,255,.16);box-shadow:var(--shadow);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}.card{border-radius:24px;padding:20px 18px;position:relative;overflow:hidden}.card::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(135deg, rgba(97,219,255,.25), rgba(159,92,255,.18), rgba(255,126,69,.18));-webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}.card h2,.mix-title,h4,label,.section-title{color:var(--text)}
+.premium-banner{position:relative;margin:0 0 14px;border-radius:28px;overflow:hidden;box-shadow:0 26px 80px rgba(0,0,0,.48);border:1px solid rgba(134,162,255,.15);background:#090d19}.premium-banner::after{content:"";position:absolute;inset:auto 0 0 0;height:42%;background:linear-gradient(180deg, rgba(5,8,15,0) 0%, rgba(5,8,15,.55) 55%, rgba(5,8,15,.82) 100%);pointer-events:none}.premium-banner img{display:block;width:100%;height:auto;max-height:260px;object-fit:cover}
+.nav{position:sticky;top:max(8px, env(safe-area-inset-top));z-index:35;gap:10px;margin:0 0 16px;padding:10px;border-radius:999px;background:rgba(8,12,24,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(127,153,255,.14);box-shadow:0 12px 40px rgba(0,0,0,.35)}.nav-btn{background:rgba(17,23,42,.84);border:1px solid rgba(130,153,255,.16);color:#d9e4ff;border-radius:999px;min-height:46px;padding:12px 18px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}.nav-btn.active{background:linear-gradient(135deg, rgba(35,148,255,.92), rgba(135,79,255,.92));border-color:rgba(130,224,255,.58);color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 0 22px rgba(61,174,255,.22), 0 0 34px rgba(155,92,255,.18)}
+input,select,textarea{background:rgba(11,16,31,.82);border:1px solid rgba(126,154,255,.18);color:var(--text);border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}input::placeholder,textarea::placeholder{color:#8b99bc}input:focus,select:focus,textarea:focus{border-color:rgba(86,214,255,.68);box-shadow:0 0 0 3px rgba(77,215,255,.14), 0 0 18px rgba(77,215,255,.10)}
+.btn{border-radius:16px;min-height:48px;transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease}.btn:hover{transform:translateY(-1px)}.btn:active{transform:scale(.985)}.btn-primary{background:linear-gradient(135deg, #2495ff 0%, #8257ff 55%, #ff7a45 100%);color:#fff;box-shadow:0 10px 26px rgba(37,149,255,.24),0 0 24px rgba(130,87,255,.14)}.btn-secondary{background:rgba(14,20,38,.86);color:#eaf0ff;border:1px solid rgba(120,153,255,.18);box-shadow:0 8px 20px rgba(0,0,0,.25)}.btn-success{background:linear-gradient(135deg, rgba(36,255,183,.18), rgba(95,255,206,.10));color:#d7fff1;border:1px solid rgba(77,255,182,.30)}.btn-danger{background:linear-gradient(135deg, rgba(255,109,122,.18), rgba(255,109,122,.08));color:#ffd7db;border:1px solid rgba(255,109,122,.28)}
+.badge-primary{background:rgba(63,174,255,.18);color:#a9e7ff;border:1px solid rgba(63,174,255,.22)}.badge-info{background:rgba(91,220,255,.16);color:#a9eeff;border:1px solid rgba(91,220,255,.20)}.badge-warning{background:rgba(255,179,71,.16);color:#ffe4b5;border:1px solid rgba(255,179,71,.22)}.badge-danger{background:rgba(255,109,122,.18);color:#ffd4d9;border:1px solid rgba(255,109,122,.22)}.badge-success{background:rgba(77,255,182,.16);color:#cbffe8;border:1px solid rgba(77,255,182,.24)}.badge-neutral,.tag{background:rgba(17,22,40,.86);color:#cdd8f7;border:1px solid rgba(124,145,255,.14)}
+.search-results{background:rgba(10,14,28,.96);border:1px solid rgba(124,145,255,.16);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}.search-option{background:transparent;color:var(--text)}.search-option:hover,.search-option.active{background:linear-gradient(135deg, rgba(36,149,255,.16), rgba(130,87,255,.12))}
+.flavor-item:hover{border-color:rgba(77,215,255,.30);background:linear-gradient(135deg, rgba(19,29,52,.88), rgba(11,16,31,.88))}.stat-value{color:#9be8ff;text-shadow:0 0 18px rgba(77,215,255,.16)}.notice{background:linear-gradient(135deg, rgba(43,77,186,.24), rgba(87,46,174,.22));border:1px solid rgba(124,145,255,.20);color:#e5eeff}.mix-card{border-color:rgba(77,215,255,.18);background:linear-gradient(180deg, rgba(16,22,42,.90) 0%, rgba(8,12,23,.96) 100%)}.mix-card::before{height:4px;background:linear-gradient(90deg,#4dd7ff,#9b5cff,#ff7a45)}.kv-row{border-bottom:1px dashed rgba(124,145,255,.12)}.score-circle{box-shadow:0 0 26px rgba(77,215,255,.16), 0 12px 30px rgba(0,0,0,.32)}.score-good{background:linear-gradient(135deg,#1d9fff,#56d6ff)}.score-excellent{background:linear-gradient(135deg,#2ce08d,#58ffc4)}.score-mid{background:linear-gradient(135deg,#ff934d,#ffb347)}.score-bad{background:linear-gradient(135deg,#ff5d73,#ff8da0)}.flavor-bar{background:rgba(124,145,255,.10)}
+.photo-status{border-radius:16px}.photo-status.info{background:rgba(43,77,186,.20);border:1px solid rgba(91,220,255,.16);color:#dfeaff}.photo-status.success{background:rgba(34,174,122,.16);border:1px solid rgba(77,255,182,.22);color:#ddfff1}.photo-status.error{background:rgba(188,53,79,.16);border:1px solid rgba(255,109,122,.22);color:#ffe2e6}.photo-preview-wrap,.photo-pass-card,.photo-empty{background:rgba(10,14,28,.72);border:1px solid rgba(124,145,255,.12);border-radius:20px}.photo-preview-wrap{min-height:200px;display:flex;align-items:center;justify-content:center}.photo-pass-card .meta{color:#d7e2ff;background:rgba(8,12,24,.72)}
+@media (max-width:720px){.container{padding:12px 12px calc(18px + env(safe-area-inset-bottom))}.premium-banner{border-radius:22px}.premium-banner img{max-height:180px}.nav{top:calc(env(safe-area-inset-top) + 6px);padding:8px;gap:8px}.nav-btn{padding:11px 14px;min-height:44px;font-size:.92rem}.card{padding:16px 14px;border-radius:22px}}
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-<body>
 <div class="container app-shell">
 
   <div class="premium-banner no-print">
-    <img src="assets/banner-premium.png" alt="Hookah Mixology banner">
+    <img src="assets/banner-v13.png" alt="Hookah Mixology Engine Pro">
   </div>
 
   <nav class="nav no-print">
@@ -1154,9 +1171,25 @@ const app = {
     const bigram = this.bigramSimilarity(left, right);
     const distance = this.levenshteinDistance(left, right);
     const edit = 1 - (distance / Math.max(left.length, right.length, 1));
-    let contain = 0;
-    if (left.includes(right) || right.includes(left)) contain = 1;
-    return Math.max(bigram * 0.58 + Math.max(0, edit) * 0.32 + contain * 0.10, contain ? 0.72 : 0);
+    const contain = (left.includes(right) || right.includes(left)) ? 1 : 0;
+    const prefix = left.startsWith(right) || right.startsWith(left) ? 0.1 : 0;
+    return Math.max(bigram * 0.50 + Math.max(0, edit) * 0.34 + contain * 0.10 + prefix, contain ? 0.74 : 0);
+  },
+
+  normalizeOCRLoose(rawText) {
+    return String(rawText || '')
+      .toLowerCase()
+      .replace(/[|!]/g, 'i')
+      .replace(/[0о]/g, 'o')
+      .replace(/[1]/g, 'l')
+      .replace(/[5$]/g, 's')
+      .replace(/[8]/g, 'b')
+      .replace(/@/g, 'a')
+      .replace(/rn/g, 'm')
+      .replace(/vv/g, 'w')
+      .replace(/[^a-zа-яё0-9\s]/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   },
 
   preprocessPhotoToCanvas(img, mode = 'gray', cropPreset = 'full') {
@@ -1164,14 +1197,15 @@ const app = {
     const srcH = img.naturalHeight || img.height || 1;
     let sx = 0, sy = 0, sw = srcW, sh = srcH;
     if (cropPreset === 'center') {
-      sx = srcW * 0.12; sy = srcH * 0.18; sw = srcW * 0.76; sh = srcH * 0.52;
+      sx = srcW * 0.10; sy = srcH * 0.16; sw = srcW * 0.80; sh = srcH * 0.56;
     } else if (cropPreset === 'bottom') {
-      sx = srcW * 0.08; sy = srcH * 0.35; sw = srcW * 0.84; sh = srcH * 0.50;
+      sx = srcW * 0.06; sy = srcH * 0.34; sw = srcW * 0.88; sh = srcH * 0.50;
     }
-    const scale = Math.min(2200 / Math.max(sw, sh), 2.2);
+    const maxSide = this.isLikelyMobile() ? 1280 : 1500;
+    const scale = Math.min(maxSide / Math.max(sw, sh, 1), 1.6);
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(400, Math.round(sw * scale));
-    canvas.height = Math.max(220, Math.round(sh * scale));
+    canvas.width = Math.max(520, Math.round(sw * scale));
+    canvas.height = Math.max(260, Math.round(sh * scale));
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -1180,14 +1214,17 @@ const app = {
       const r = data[i], g = data[i + 1], b = data[i + 2];
       const gray = 0.299 * r + 0.587 * g + 0.114 * b;
       let value = gray;
-      if (mode === 'gray') value = Math.min(255, Math.max(0, (gray - 118) * 2.2 + 128));
-      else if (mode === 'bw') value = gray > 150 ? 255 : 0;
-      else if (mode === 'invert') value = 255 - Math.min(255, Math.max(0, (gray - 118) * 2.1 + 128));
-      else if (mode === 'edge') value = gray > 100 && gray < 220 ? 255 : 0;
+      if (mode === 'gray') value = Math.min(255, Math.max(0, (gray - 110) * 1.85 + 128));
+      else if (mode === 'bw') value = gray > 142 ? 255 : 0;
+      else if (mode === 'soft') value = Math.min(255, Math.max(0, (gray - 118) * 1.45 + 128));
       data[i] = data[i + 1] = data[i + 2] = value;
     }
     ctx.putImageData(imageData, 0, 0);
     return canvas;
+  },
+
+  isLikelyMobile() {
+    return /iphone|ipad|ipod|android/i.test(navigator.userAgent || '') || window.innerWidth < 820;
   },
 
   renderPhotoPassPreviews(previews) {
@@ -1203,10 +1240,11 @@ const app = {
   getPhotoSearchTexts(rawText) {
     const base = String(rawText || '');
     const normalized = this.normalizeComparableText(base);
-    const compact = this.compactComparableText(base);
-    const lines = base.split(/\n+/).map(line => line.trim()).filter(Boolean);
-    const normalizedLines = normalized.split(/\n+/).map(line => line.trim()).filter(Boolean);
-    const tokens = this.tokenizeComparableText(base);
+    const loose = this.normalizeOCRLoose(base);
+    const compact = this.compactComparableText(loose || base);
+    const lines = Array.from(new Set(base.split(/\n+/).map(line => line.trim()).filter(Boolean)));
+    const normalizedLines = Array.from(new Set((normalized + '\n' + loose).split(/\n+/).map(line => line.trim()).filter(Boolean)));
+    const tokens = Array.from(new Set([...this.tokenizeComparableText(base), ...this.tokenizeComparableText(loose)]));
     const phrases = [];
     lines.forEach(line => phrases.push(line));
     normalizedLines.forEach(line => phrases.push(line));
@@ -1219,6 +1257,7 @@ const app = {
     }
     if (compact) phrases.push(compact);
     if (normalized) phrases.push(normalized);
+    if (loose) phrases.push(loose);
     return Array.from(new Set(phrases.map(v => String(v || '').trim()).filter(v => v.length >= 2)));
   },
 
@@ -1241,19 +1280,23 @@ const app = {
   },
 
   normalizePhotoOCRText(rawText) {
-    return this.normalizeComparableText(rawText)
-      .replace(/blak+\s*burn/g, 'blackburn')
-      .replace(/bla[kx]+\s*burn/g, 'blackburn')
-      .replace(/black\s*bun+n?/g, 'blackburn')
-      .replace(/black\s*bur[nm]/g, 'blackburn')
-      .replace(/must\s*h[ae]ve/g, 'must have')
-      .replace(/dark\s*side/g, 'darkside')
-      .replace(/deu5/g, 'deus')
-      .replace(/l[ei]monad[ea]/g, 'lemonade')
-      .replace(/lem0nade/g, 'lemonade')
-      .replace(/pearr/g, 'pear')
-      .replace(/\bblakburn\b/g, 'blackburn')
-      .replace(/\bblack burn\b/g, 'blackburn')
+    return this.normalizeOCRLoose(rawText)
+      .replace(/ov[e3]r\s*d[o0]s[e3]/g, 'overdose')
+      .replace(/0verdose/g, 'overdose')
+      .replace(/overd0se/g, 'overdose')
+      .replace(/blak+\s*burn/g, 'blackburn')
+      .replace(/bla[kx]+\s*burn/g, 'blackburn')
+      .replace(/black\s*bun+n?/g, 'blackburn')
+      .replace(/black\s*bur[nm]/g, 'blackburn')
+      .replace(/black\s*burn/g, 'blackburn')
+      .replace(/must\s*h[ae]ve/g, 'must have')
+      .replace(/dark\s*side/g, 'darkside')
+      .replace(/deu5/g, 'deus')
+      .replace(/l[ei]monad[ea]/g, 'lemonade')
+      .replace(/lem0nade/g, 'lemonade')
+      .replace(/pearr/g, 'pear')
+      .replace(/p1nkman/g, 'pinkman')
+      .replace(/mal1bu/g, 'malibu')
       .replace(/\s+/g, ' ')
       .trim();
   },
@@ -1274,7 +1317,7 @@ const app = {
       }
     });
     const aliases = {
-      'blackburn': ['black burn','blakburn','black bun','black bum','black burm'],
+      'blackburn': ['black burn','blakburn','black bun','black bum','black burm','blackbun'],
       'must have': ['musthave','must hve','must hane'],
       'darkside': ['dark side','darkslde'],
       'deus': ['deu5','devs'],
@@ -1292,29 +1335,41 @@ const app = {
 
   scoreBrandCandidate(entry, sourceText) {
     const textNorm = this.normalizePhotoOCRText(sourceText);
-    const textCompact = this.compactComparableText(textNorm);
-    const textTokens = this.tokenizeComparableText(textNorm);
+    const textLoose = this.normalizeOCRLoose(sourceText);
+    const textCompact = this.compactComparableText(textNorm || textLoose);
+    const textTokens = Array.from(new Set([...this.tokenizeComparableText(textNorm), ...this.tokenizeComparableText(textLoose)]));
     let score = 0;
     if (!textCompact) return 0;
-    if (textCompact.includes(entry.compact)) score += 260;
-    if (entry.compact.includes(textCompact) && textCompact.length >= 5) score += 120;
-    (entry.aliases || []).forEach(alias => {
-      const aliasCompact = this.compactComparableText(alias);
-      if (aliasCompact && textCompact.includes(aliasCompact)) score += 210;
+    const aliasCompacts = (entry.aliases || []).map(alias => this.compactComparableText(alias)).filter(Boolean);
+    const candidates = [entry.compact, ...aliasCompacts];
+    candidates.forEach(candidate => {
+      if (!candidate) return;
+      if (textCompact === candidate) score = Math.max(score, 620);
+      if (textCompact.includes(candidate)) score = Math.max(score, 520);
+      if (candidate.includes(textCompact) && textCompact.length >= 5) score = Math.max(score, 340);
+      score = Math.max(score, Math.round(this.similarityScore(textCompact, candidate) * 430));
     });
     const tokenHits = (entry.tokens || []).filter(token => textTokens.includes(token)).length;
-    score += tokenHits * 75;
-    score += Math.round(this.similarityScore(textNorm, entry.norm) * 140);
-    score += Math.round(this.similarityScore(textCompact, entry.compact) * 120);
+    score += tokenHits * 110;
+    if ((entry.tokens || []).length === 1 && textTokens.includes(entry.tokens[0])) score += 180;
+    if (entry.norm && this.getPhotoSearchTexts(textNorm).some(line => this.similarityScore(line, entry.norm) >= 0.86)) score += 120;
     return score;
   },
 
   getLikelyBrands(sourceText, limit = 3) {
-    return this.getBrandCatalog()
-      .map(entry => ({ ...entry, score: this.scoreBrandCandidate(entry, sourceText) }))
-      .filter(item => item.score >= 120)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    const ranked = this.getBrandCatalog().map(entry => ({ ...entry, score: this.scoreBrandCandidate(entry, sourceText) })).filter(item => item.score >= 180).sort((a, b) => b.score - a.score);
+    return ranked.slice(0, limit);
+  },
+
+  getLockedBrand(sourceText) {
+    const ranked = this.getLikelyBrands(sourceText, 3);
+    if (!ranked.length) return null;
+    const top = ranked[0];
+    const second = ranked[1] || null;
+    const gap = second ? top.score - second.score : top.score;
+    const exactLine = this.getPhotoSearchTexts(sourceText).some(line => this.compactComparableText(line).includes(top.compact));
+    if (top.score >= 520 || (top.score >= 430 && gap >= 90) || (exactLine && top.score >= 360)) return { ...top, gap };
+    return null;
   },
 
   async extractPhotoTexts(imgEl) {
@@ -1322,43 +1377,45 @@ const app = {
       await this.ensureExternalLib('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'Tesseract');
     }
     const tasks = [
-      { key: 'gray', label: 'Основной OCR', crop: this.state.photoCropPreset || 'full' },
-      { key: 'bw', label: 'Центр этикетки', crop: 'center' }
+      { key: 'soft', label: 'Quick English OCR', crop: this.state.photoCropPreset || 'full', lang: 'eng' },
+      { key: 'gray', label: 'Focused English OCR', crop: 'center', lang: 'eng' }
     ];
     const previews = [];
     const textBlocks = [];
+    let bestConfidence = 0;
+    let bestBrand = null;
     for (let idx = 0; idx < tasks.length; idx++) {
       const task = tasks[idx];
       const canvas = this.preprocessPhotoToCanvas(imgEl, task.key, task.crop);
       previews.push({ label: task.label, dataUrl: canvas.toDataURL('image/png') });
       this.renderPhotoPassPreviews(previews);
-      this.updatePhotoStatus(`OCR-проход ${idx + 1} из ${tasks.length}: ${task.label}…`, 'info');
-      const result = await Tesseract.recognize(canvas, 'eng+rus', {
-        logger: (message) => {
-          if (message.status === 'recognizing text') {
-            const pct = Math.round((message.progress || 0) * 100);
-            this.updatePhotoStatus(`OCR ${idx + 1}/${tasks.length}: ${task.label} — ${pct}%`, 'info');
-          }
-        }
-      });
+      this.updatePhotoStatus(`OCR-проход ${idx + 1}/${tasks.length}: ${task.label}…`, 'info');
+      const result = await Tesseract.recognize(canvas, task.lang, { logger: (message) => { if (message.status === 'recognizing text') { const pct = Math.round((message.progress || 0) * 100); this.updatePhotoStatus(`OCR ${idx + 1}/${tasks.length}: ${pct}%`, 'info'); } } });
       const rawText = String(result && result.data && result.data.text ? result.data.text : '').trim();
+      const confidence = Number(result && result.data && result.data.confidence ? result.data.confidence : 0) || 0;
+      bestConfidence = Math.max(bestConfidence, confidence);
       const normalized = this.normalizePhotoOCRText(rawText);
+      const loose = this.normalizeOCRLoose(rawText);
       if (rawText) textBlocks.push(rawText);
-      if (normalized && normalized !== rawText) textBlocks.push(normalized);
-      const enoughText = this.tokenizeComparableText(normalized || rawText).length >= 2;
-      const likelyBrands = this.getLikelyBrands(normalized || rawText, 2);
-      if (likelyBrands.length && enoughText) break;
+      if (normalized) textBlocks.push(normalized);
+      if (loose && loose !== normalized) textBlocks.push(loose);
+      const mergedProbe = Array.from(new Set(textBlocks.join('\n').split(/\n+/).map(v => v.trim()).filter(Boolean))).join('\n');
+      const lock = this.getLockedBrand(mergedProbe);
+      if (lock) bestBrand = lock;
+      const enoughTokens = this.tokenizeComparableText(mergedProbe).length >= 2;
+      if (lock && (confidence >= 35 || enoughTokens)) break;
+      if (idx === 0 && confidence >= 72 && enoughTokens) break;
     }
     const merged = Array.from(new Set(textBlocks.join('\n').split(/\n+/).map(v => v.trim()).filter(Boolean))).join('\n');
-    return { text: merged, previews };
+    return { text: merged, previews, confidence: bestConfidence, lockedBrand: bestBrand || this.getLockedBrand(merged) };
   },
 
   scorePhotoFlavorMatch(flavor, sourceText, brandContext = null) {
     const sourceNorm = this.normalizePhotoOCRText(sourceText);
-    const sourceCompact = this.compactComparableText(sourceNorm);
-    const sourceTokens = this.tokenizeComparableText(sourceNorm);
-    const searchTexts = this.getPhotoSearchTexts(sourceNorm);
-
+    const sourceLoose = this.normalizeOCRLoose(sourceText);
+    const sourceCompact = this.compactComparableText(sourceNorm || sourceLoose);
+    const sourceTokens = Array.from(new Set([...this.tokenizeComparableText(sourceNorm), ...this.tokenizeComparableText(sourceLoose)]));
+    const searchTexts = this.getPhotoSearchTexts(sourceNorm + '\n' + sourceLoose);
     const brand = this.normalizePhotoOCRText(flavor.brand);
     const name = this.normalizePhotoOCRText(flavor.name);
     const label = `${brand} ${name}`.trim();
@@ -1367,78 +1424,62 @@ const app = {
     const labelCompact = this.compactComparableText(label);
     const nameTokens = this.tokenizeComparableText(name);
     const brandTokens = this.tokenizeComparableText(brand);
-
     let score = 0;
     const reasons = [];
     if (!sourceCompact) return { score: 0, reasons: [] };
-
     if (brandContext && this.compactComparableText(brandContext.brand) === brandCompact) {
-      score += Math.round(brandContext.score * 0.9);
+      score += Math.round(Math.max(320, brandContext.score * 1.05));
       reasons.push('совпал бренд');
     } else {
-      const brandScore = this.scoreBrandCandidate({ brand: flavor.brand, norm: brand, compact: brandCompact, tokens: brandTokens, aliases: [] }, sourceNorm);
-      score += Math.round(brandScore * 0.65);
-      if (brandScore >= 150) reasons.push('бренд близок');
+      const brandScore = this.scoreBrandCandidate({ brand: flavor.brand, norm: brand, compact: brandCompact, tokens: brandTokens, aliases: [] }, sourceNorm || sourceLoose);
+      score += Math.round(brandScore * 0.55);
+      if (brandScore >= 220) reasons.push('бренд близок');
     }
-
     if (sourceCompact.includes(labelCompact) && labelCompact.length >= 5) {
-      score += 420;
+      score += 560;
       reasons.push('полное название найдено в OCR');
     } else if (sourceCompact.includes(nameCompact) && nameCompact.length >= 4) {
-      score += 220;
+      score += 260;
       reasons.push('название вкуса найдено напрямую');
     }
-
-    let bestLabelSimilarity = 0;
-    let bestNameSimilarity = 0;
+    let bestLabelSimilarity = 0; let bestNameSimilarity = 0;
     searchTexts.forEach(line => {
       bestLabelSimilarity = Math.max(bestLabelSimilarity, this.similarityScore(line, label));
-      bestNameSimilarity = Math.max(bestNameSimilarity, this.similarityScore(line, name));
-      bestNameSimilarity = Math.max(bestNameSimilarity, this.similarityScore(this.compactComparableText(line), nameCompact));
+      bestNameSimilarity = Math.max(bestNameSimilarity, this.similarityScore(line, name), this.similarityScore(this.compactComparableText(line), nameCompact));
     });
-    score += Math.round(bestLabelSimilarity * 180 + bestNameSimilarity * 160);
-    if (bestNameSimilarity >= 0.82) reasons.push('вкус почти совпал по OCR');
-    else if (bestNameSimilarity >= 0.65) reasons.push('вкус похож по OCR');
-
+    score += Math.round(bestLabelSimilarity * 160 + bestNameSimilarity * 190);
+    if (bestNameSimilarity >= 0.86) reasons.push('вкус почти совпал'); else if (bestNameSimilarity >= 0.68) reasons.push('вкус похож');
     const positions = nameTokens.map(token => sourceTokens.indexOf(token)).filter(pos => pos >= 0);
     const orderedNameHits = positions.filter((pos, idx) => idx === 0 || pos >= positions[idx - 1]).length;
     const nameHitCount = nameTokens.filter(token => sourceTokens.includes(token)).length;
     const brandHitCount = brandTokens.filter(token => sourceTokens.includes(token)).length;
-    score += nameHitCount * 95 + orderedNameHits * 45 + brandHitCount * 70;
+    score += nameHitCount * 120 + orderedNameHits * 42 + brandHitCount * 85;
     if (nameHitCount) reasons.push(`совпало слов вкуса: ${nameHitCount}/${nameTokens.length}`);
-
-    const leftoverTokens = sourceTokens.filter(token => !brandTokens.includes(token) && !nameTokens.includes(token));
-    if (leftoverTokens.length >= 3 && nameHitCount === 0 && bestNameSimilarity < 0.55) score -= 60;
-
+    if (!nameHitCount && bestNameSimilarity < 0.52 && !sourceCompact.includes(nameCompact)) score -= 80;
     return { score, reasons: Array.from(new Set(reasons)).slice(0, 4) };
   },
 
   findPhotoMatches(sourceText, limit = 10) {
     const cleaned = this.normalizePhotoOCRText(sourceText);
-    if (!cleaned || cleaned.length < 2) return [];
-
-    const likelyBrands = this.getLikelyBrands(cleaned, 3);
+    const loose = this.normalizeOCRLoose(sourceText);
+    const mergedSource = [cleaned, loose].filter(Boolean).join('\n');
+    if (!mergedSource || mergedSource.length < 2) return [];
+    const lockedBrand = this.getLockedBrand(mergedSource);
+    const likelyBrands = lockedBrand ? [lockedBrand] : this.getLikelyBrands(mergedSource, 3);
     let candidateFlavors = this.state.flavors.slice();
-    if (likelyBrands.length) {
+    if (lockedBrand) {
+      const lockedCompact = this.compactComparableText(lockedBrand.brand);
+      candidateFlavors = this.state.flavors.filter(flavor => this.compactComparableText(flavor.brand) === lockedCompact);
+    } else if (likelyBrands.length) {
       const brandSet = new Set(likelyBrands.map(item => this.compactComparableText(item.brand)));
-      candidateFlavors = this.state.flavors.filter(flavor => brandSet.has(this.compactComparableText(flavor.brand)));
-      if (!candidateFlavors.length) candidateFlavors = this.state.flavors.slice();
+      const filtered = this.state.flavors.filter(flavor => brandSet.has(this.compactComparableText(flavor.brand)));
+      if (filtered.length) candidateFlavors = filtered;
     }
-
-    return candidateFlavors
-      .map(flavor => {
-        const brandContext = likelyBrands.find(item => this.compactComparableText(item.brand) === this.compactComparableText(flavor.brand)) || null;
-        const match = this.scorePhotoFlavorMatch(flavor, cleaned, brandContext);
-        return {
-          flavor,
-          score: match.score,
-          reasons: match.reasons,
-          confidence: this.clampInt(Math.min(99, Math.max(12, Math.round(match.score / 8.5))), 0, 99)
-        };
-      })
-      .filter(item => item.score >= 125)
-      .sort((a, b) => b.score - a.score || this.getFlavorLabel(a.flavor).localeCompare(this.getFlavorLabel(b.flavor), 'ru'))
-      .slice(0, limit);
+    return candidateFlavors.map(flavor => {
+      const brandContext = likelyBrands.find(item => this.compactComparableText(item.brand) === this.compactComparableText(flavor.brand)) || null;
+      const match = this.scorePhotoFlavorMatch(flavor, mergedSource, brandContext);
+      return { flavor, score: match.score, reasons: match.reasons, confidence: this.clampInt(Math.min(99, Math.max(18, Math.round(match.score / 9))), 0, 99), lockedBrand };
+    }).filter(item => item.score >= (lockedBrand ? 120 : 145)).sort((a, b) => b.score - a.score || this.getFlavorLabel(a.flavor).localeCompare(this.getFlavorLabel(b.flavor), 'ru')).slice(0, limit);
   },
 
   handlePhotoFileChange(input) {
@@ -3440,7 +3481,7 @@ if (document.readyState === 'loading') {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw.js?v=11', { scope: './' }).catch(function (err) {
+    navigator.serviceWorker.register('./sw.js?v=13', { scope: './' }).catch(function (err) {
       console.warn('Service worker registration failed:', err);
     });
   });

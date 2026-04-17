@@ -1,0 +1,1 @@
+v13: mobile-optimized OCR with brand lock and dark premium neon UI. Replace index.html, manifest.webmanifest, sw.js, assets, icons, data on GitHub Pages. Then refresh Safari and reinstall home screen icon if needed.
