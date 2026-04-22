@@ -21,8 +21,7 @@ const app = {
     flavors: [],
     favorites: [],
     jsonMode: false,
-    generationHistory: {},
-    generationSessions: {}
+    generationHistory: {}
   },
 
   getBundledBase() {
@@ -1523,19 +1522,17 @@ const app = {
       workingFlavors = this.pruneWeakestFlavor(workingFlavors, style).slice(0, Math.max(4, desiredCount));
     }
 
-    const historyKey = this.buildGenerationSignature(selected, desiredCount, style, coolingLevel);
-    const historyState = this.ensureGenerationHistory(historyKey);
-    historyState.spin = (historyState.spin || 0) + 1;
+    const signature = this.buildGenerationSignature(selected, desiredCount, style, coolingLevel);
+    const coverageHistory = this.getGenerationCoverageHistory(signature);
 
-    const groups = this.buildManualFlavorGroups(workingFlavors, style, coolingLevel, desiredCount, fixedComposition);
+    const groups = this.buildManualFlavorGroups(workingFlavors, style, coolingLevel, desiredCount, fixedComposition, coverageHistory);
     let variants = [];
-    groups.forEach((group, groupIndex) => {
-      const candidateVariants = this.generateCandidateVariants(group, style, coolingLevel, forceAlternatives ? 14 : 12, desiredCount, { historyKey, spin: historyState.spin, groupIndex });
-      candidateVariants.forEach((variant, variantIndex) => {
+    groups.forEach(group => {
+      const candidateVariants = this.generateCandidateVariants(group, style, coolingLevel, forceAlternatives ? 12 : 10, desiredCount);
+      candidateVariants.forEach(variant => {
         variant.sourceSelectionSize = group.length;
         variant.selectedPoolSize = selected.length;
-        variant.generationGroupIndex = groupIndex;
-        variant.generationVariantIndex = variantIndex;
+        variant.coverageScore = this.scoreCoverageNeedForVariant(variant, coverageHistory);
         variants.push(variant);
       });
     });
@@ -1543,28 +1540,28 @@ const app = {
     const unique = [];
     const seen = new Set();
     variants
-      .sort((a,b) => (b.compatibilityScore + (b.noveltyBoost || 0)) - (a.compatibilityScore + (a.noveltyBoost || 0)))
+      .sort((a,b) => (b.compatibilityScore + (b.coverageScore || 0)) - (a.compatibilityScore + (a.coverageScore || 0)))
       .forEach(variant => {
-        const key = this.variantFingerprint(variant);
+        const key = variant.items.map(x => x.brand + ':' + x.name + ':' + x.role + ':' + x.percent).sort().join('|') + '|' + (variant.mixConcept || variant.styleVariant || '');
         if (!seen.has(key)) {
           seen.add(key);
           unique.push(variant);
         }
       });
 
-    const diversified = this.diversifyVariantSelection(unique, Math.max(resultCount * 5, forceAlternatives ? 12 : 10), historyKey);
+    const diversified = this.diversifyVariantSelection(unique, Math.max(resultCount * 6, forceAlternatives ? 14 : 10));
     if (forceAlternatives) return diversified;
     return this.rotateManualVariants(diversified, selected, desiredCount, style, coolingLevel, resultCount);
   },
 
-  buildManualFlavorGroups(flavors, style, coolingLevel, targetCount, fixedComposition) {
+  buildManualFlavorGroups(flavors, style, coolingLevel, targetCount, fixedComposition, coverageHistory = null) {
     if (flavors.length <= targetCount) return [flavors];
     const combos = this.getCombinations(flavors, targetCount);
     const scored = combos.map(group => ({
       group,
-      score: this.scoreManualGroup(group, style, coolingLevel, fixedComposition)
+      score: this.scoreManualGroup(group, style, coolingLevel, fixedComposition) + this.scoreCoverageNeedForGroup(group, coverageHistory)
     })).sort((a,b) => b.score - a.score);
-    return scored.slice(0, 12).map(x => x.group);
+    return scored.slice(0, 18).map(x => x.group);
   },
 
   scoreManualGroup(group, style, coolingLevel, fixedComposition) {
@@ -1608,21 +1605,106 @@ const app = {
     return result;
   },
 
+  getGenerationCoverageHistory(signature) {
+    const raw = this.state.generationHistory[signature] || {};
+    return {
+      cursor: raw.cursor || 0,
+      recentVariantKeys: Array.isArray(raw.recentVariantKeys) ? raw.recentVariantKeys.slice() : [],
+      flavorUsage: raw.flavorUsage || {},
+      bodyUsage: raw.bodyUsage || {},
+      conceptUsage: raw.conceptUsage || {}
+    };
+  },
+
+  scoreCoverageNeedForGroup(group, history = null) {
+    if (!history) return 0;
+    let bonus = 0;
+    group.forEach(flavor => {
+      const key = this.normalizeText(flavor.brand + '|' + flavor.name);
+      const used = history.flavorUsage[key] || 0;
+      bonus += Math.max(0, 8 - used * 2.2);
+    });
+    bonus += new Set(group.map(flavor => flavor.analysis.category)).size * 1.2;
+    return bonus;
+  },
+
+  scoreCoverageNeedForVariant(variant, history = null) {
+    if (!history) return 0;
+    let bonus = 0;
+    variant.items.forEach(item => {
+      const key = this.normalizeText(item.brand + '|' + item.name);
+      const used = history.flavorUsage[key] || 0;
+      bonus += Math.max(0, 10 - used * 2.5);
+    });
+    const bodyKey = this.normalizeText((variant.bodyName || '') + '');
+    bonus += Math.max(0, 7 - ((history.bodyUsage[bodyKey] || 0) * 3));
+    const conceptKey = this.normalizeText(variant.mixConcept || variant.styleVariant || 'base');
+    bonus += Math.max(0, 4 - ((history.conceptUsage[conceptKey] || 0) * 1.5));
+    return bonus;
+  },
+
+  variantCoverageKey(variant) {
+    const parts = variant.items.map(x => this.normalizeText(x.brand + '|' + x.name + '|' + x.role + '|' + x.percent)).sort();
+    return parts.join('||') + '::' + this.normalizeText(variant.mixConcept || variant.styleVariant || 'base');
+  },
+
   rotateManualVariants(variants, selected, targetCount, style, coolingLevel, resultCount) {
     if (!variants.length) return [];
     const signature = this.buildGenerationSignature(selected, targetCount, style, coolingLevel);
-    const history = this.ensureGenerationHistory(signature);
-    const pool = variants.slice().sort((a, b) => (b.compatibilityScore + (b.noveltyBoost || 0)) - (a.compatibilityScore + (a.noveltyBoost || 0)));
-    const unseen = pool.filter(variant => !history.recentVariantKeys.includes(this.variantFingerprint(variant)));
-    const source = unseen.length >= resultCount ? unseen : pool;
-    const total = source.length;
-    const take = Math.min(resultCount, total);
-    const start = (history.cursor || 0) % total;
-    const rotated = [];
-    for (let i = 0; i < take; i++) rotated.push(source[(start + i) % total]);
-    history.cursor = (start + take) % Math.max(total, 1);
-    this.rememberChosenVariants(signature, rotated);
-    return rotated;
+    const history = this.getGenerationCoverageHistory(signature);
+    const pool = variants.slice();
+    const chosen = [];
+    const take = Math.min(resultCount, pool.length);
+
+    while (pool.length && chosen.length < take) {
+      let bestIndex = 0;
+      let bestScore = -Infinity;
+
+      pool.forEach((variant, idx) => {
+        let adjusted = variant.compatibilityScore + this.scoreCoverageNeedForVariant(variant, history);
+        const variantKey = this.variantCoverageKey(variant);
+        if (history.recentVariantKeys.includes(variantKey)) adjusted -= 18;
+
+        variant.items.forEach(item => {
+          const usageKey = this.normalizeText(item.brand + '|' + item.name);
+          adjusted -= (history.flavorUsage[usageKey] || 0) * 2.5;
+        });
+
+        const bodyKey = this.normalizeText((variant.bodyName || '') + '');
+        adjusted -= (history.bodyUsage[bodyKey] || 0) * 5;
+
+        const conceptKey = this.normalizeText(variant.mixConcept || variant.styleVariant || 'base');
+        adjusted -= (history.conceptUsage[conceptKey] || 0) * 2.5;
+
+        chosen.forEach(existing => {
+          const overlap = variant.items.filter(item => existing.items.some(prev => this.normalizeText(prev.brand + '|' + prev.name) === this.normalizeText(item.brand + '|' + item.name))).length;
+          adjusted -= overlap * 5;
+          if (this.normalizeText(existing.bodyName || '') === bodyKey) adjusted -= 10;
+        });
+
+        if (adjusted > bestScore) {
+          bestScore = adjusted;
+          bestIndex = idx;
+        }
+      });
+
+      const picked = pool.splice(bestIndex, 1)[0];
+      chosen.push(picked);
+      picked.items.forEach(item => {
+        const key = this.normalizeText(item.brand + '|' + item.name);
+        history.flavorUsage[key] = (history.flavorUsage[key] || 0) + 1;
+      });
+      const bodyKey = this.normalizeText((picked.bodyName || '') + '');
+      history.bodyUsage[bodyKey] = (history.bodyUsage[bodyKey] || 0) + 1;
+      const conceptKey = this.normalizeText(picked.mixConcept || picked.styleVariant || 'base');
+      history.conceptUsage[conceptKey] = (history.conceptUsage[conceptKey] || 0) + 1;
+      history.recentVariantKeys.push(this.variantCoverageKey(picked));
+      history.recentVariantKeys = history.recentVariantKeys.slice(-24);
+    }
+
+    history.cursor = (history.cursor + chosen.length) % Math.max(1, variants.length);
+    this.state.generationHistory[signature] = history;
+    return chosen;
   },
 
   buildGenerationSignature(selected, targetCount, style, coolingLevel) {
@@ -1721,7 +1803,7 @@ const app = {
     return ['body', 'support', 'support', 'rounder', 'accent'];
   },
 
-  pickFlavorForRole(pool, picked, role, styleTarget, coolingLevel, bodyFlavor, usedCategories, historyKey = null, attemptIndex = 0) {
+  pickFlavorForRole(pool, picked, role, styleTarget, coolingLevel, bodyFlavor, usedCategories) {
     const pickedIds = new Set(picked.map(f => String(f.id)));
     let candidates = pool
       .filter(f => !pickedIds.has(String(f.id)))
@@ -1730,8 +1812,6 @@ const app = {
         if (!bodyFlavor && role === 'body') fit += (10 - flavor.analysis.suppressionRisk);
         if (usedCategories.has(flavor.analysis.category) && role !== 'support') fit -= 4;
         if (!usedCategories.has(flavor.analysis.category) && role !== 'body') fit += 2;
-        if (historyKey && this.wasFlavorUsedRecently(historyKey, flavor)) fit -= role === 'body' ? 7 : 5;
-        fit += Math.random() * (attemptIndex % 3 === 0 ? 4.5 : 3.2);
         return { flavor, fit };
       })
       .sort((a, b) => b.fit - a.fit);
@@ -1752,13 +1832,13 @@ const app = {
       candidates = candidates.filter(c => c.flavor.analysis.roleSuit.body >= 4);
     }
 
-    const topWindow = Math.max(12, Math.min(48, Math.floor(pool.length * 0.14)));
+    const topWindow = Math.max(10, Math.min(40, Math.floor(pool.length * 0.12)));
     const shortlist = candidates.slice(0, topWindow);
     return this.weightedPick(shortlist);
   },
 
-  diversifyVariantSelection(variants, resultCount, historyKey = null) {
-    const ranked = [...variants].sort((a, b) => (b.compatibilityScore + (b.noveltyBoost || 0)) - (a.compatibilityScore + (a.noveltyBoost || 0)));
+  diversifyVariantSelection(variants, resultCount) {
+    const ranked = [...variants].sort((a, b) => b.compatibilityScore - a.compatibilityScore);
     const selected = [];
     const usage = new Map();
 
@@ -1767,9 +1847,8 @@ const app = {
       let bestScore = -Infinity;
 
       ranked.forEach((variant, idx) => {
-        const overlapPenalty = variant.items.reduce((sum, item) => sum + ((usage.get(item.brand + '|' + item.name) || 0) * 6), 0) + ((usage.get('concept|' + (variant.mixConcept || variant.styleVariant)) || 0) * 5);
-        const historyPenalty = historyKey ? this.computeHistoryPenalty(historyKey, variant) : 0;
-        const adjusted = variant.compatibilityScore + (variant.noveltyBoost || 0) - overlapPenalty - historyPenalty + Math.random() * 0.35;
+        const overlapPenalty = variant.items.reduce((sum, item) => sum + ((usage.get(item.brand + '|' + item.name) || 0) * 6), 0) + ((usage.get('concept|' + (variant.mixConcept || variant.styleVariant)) || 0) * 4);
+        const adjusted = variant.compatibilityScore - overlapPenalty;
         if (adjusted > bestScore) {
           bestScore = adjusted;
           bestIndex = idx;
@@ -1786,7 +1865,6 @@ const app = {
       usage.set(conceptKey, (usage.get(conceptKey) || 0) + 1);
     }
 
-    if (historyKey) this.rememberChosenVariants(historyKey, selected);
     return selected;
   },
 
@@ -1794,9 +1872,6 @@ const app = {
     const pool = this.state.flavors.map(f => this.hydrateFlavor({...f}));
     if (pool.length < count) return [];
     const styleTarget = this.styleTargets[style] || this.styleTargets.universal;
-    const historyKey = this.buildAutoGenerationSignature(count, style, coolingLevel);
-    const historyState = this.ensureGenerationHistory(historyKey);
-    historyState.spin = (historyState.spin || 0) + 1;
 
     const uniquePool = [];
     const poolKeys = new Set();
@@ -1812,10 +1887,10 @@ const app = {
       .map(flavor => ({ flavor, fit: this.scoreFlavorAgainstTarget(flavor, styleTarget, coolingLevel, 'body', null) }))
       .sort((a, b) => b.fit - a.fit);
 
-    const bodyPoolSize = Math.min(uniquePool.length, Math.max(28, Math.round(Math.sqrt(uniquePool.length) * 6)));
+    const bodyPoolSize = Math.min(uniquePool.length, Math.max(24, Math.round(Math.sqrt(uniquePool.length) * 5)));
     const bodyPool = scoredBodies.slice(0, bodyPoolSize).map(x => x.flavor);
 
-    const attempts = Math.min(2600, Math.max(900, uniquePool.length * 5));
+    const attempts = Math.min(2200, Math.max(700, uniquePool.length * 4));
     const variants = [];
     const seenSets = new Set();
     const rolePlan = this.autoRolePlan(count, style, coolingLevel);
@@ -1824,9 +1899,9 @@ const app = {
       const picked = [];
       const usedCategories = new Set();
 
-      const randomizedBodyPool = bodyPool.slice(0, Math.min(bodyPool.length, 72)).map((flavor) => ({
+      const randomizedBodyPool = bodyPool.slice(0, Math.min(bodyPool.length, 50)).map((flavor, idx) => ({
         flavor,
-        fit: this.scoreFlavorAgainstTarget(flavor, styleTarget, coolingLevel, 'body') + Math.random() * 10 + (this.wasFlavorUsedRecently(historyKey, flavor) ? -8 : 0)
+        fit: (scoredBodies[idx] ? scoredBodies[idx].fit : this.scoreFlavorAgainstTarget(flavor, styleTarget, coolingLevel, 'body')) + Math.random() * 8
       }));
       const bodyFlavor = this.weightedPick(randomizedBodyPool) || bodyPool[Math.floor(Math.random() * bodyPool.length)] || uniquePool[0];
       if (!bodyFlavor) continue;
@@ -1836,7 +1911,7 @@ const app = {
 
       for (let roleIndex = 1; roleIndex < rolePlan.length; roleIndex++) {
         const role = rolePlan[roleIndex];
-        const nextFlavor = this.pickFlavorForRole(uniquePool, picked, role, styleTarget, coolingLevel, bodyFlavor, usedCategories, historyKey, i);
+        const nextFlavor = this.pickFlavorForRole(uniquePool, picked, role, styleTarget, coolingLevel, bodyFlavor, usedCategories);
         if (!nextFlavor) break;
         picked.push(nextFlavor);
         usedCategories.add(nextFlavor.analysis.category);
@@ -1848,52 +1923,46 @@ const app = {
       if (seenSets.has(signature)) continue;
       seenSets.add(signature);
 
-      const candidateVariants = this.generateCandidateVariants(picked, style, coolingLevel, 4, count, { historyKey, spin: historyState.spin, attempt: i });
-      candidateVariants.forEach((variant, variantIndex) => {
-        variant.generationAttempt = i;
-        variant.generationVariantIndex = variantIndex;
-        variants.push(variant);
-      });
+      const candidateVariants = this.generateCandidateVariants(picked, style, coolingLevel, 3);
+      candidateVariants.forEach(variant => variants.push(variant));
     }
 
     const uniqueVariants = [];
     const seenVariantKeys = new Set();
     variants
-      .sort((a, b) => (b.compatibilityScore + (b.noveltyBoost || 0)) - (a.compatibilityScore + (a.noveltyBoost || 0)))
+      .sort((a, b) => b.compatibilityScore - a.compatibilityScore)
       .forEach(variant => {
-        const key = this.variantFingerprint(variant);
+        const key = variant.items.map(x => x.brand + ':' + x.name + ':' + x.role + ':' + x.percent).sort().join('|');
         if (!seenVariantKeys.has(key)) {
           seenVariantKeys.add(key);
           uniqueVariants.push(variant);
         }
       });
 
-    const diversified = this.diversifyVariantSelection(uniqueVariants, Math.max(resultCount * 4, 12), historyKey);
-    return diversified.slice(0, resultCount);
+    return this.diversifyVariantSelection(uniqueVariants, resultCount);
   },
 
-generateCandidateVariants(flavors, style, coolingLevel, limit = 4, forcedCount = null, generationMeta = null) {
+generateCandidateVariants(flavors, style, coolingLevel, limit = 4, forcedCount = null) {
   const hydrated = flavors.map(f => this.hydrateFlavor({...f}));
   const count = forcedCount || hydrated.length;
-  const conceptOrder = this.shuffleConceptPriority(this.getConceptPriority(style, count, coolingLevel), generationMeta);
+  const target = this.styleTargets[style] || this.styleTargets.universal;
+  const conceptOrder = this.getConceptPriority(style, count, coolingLevel);
   const bodyCandidates = [...hydrated].sort((a,b) => {
     const aScore = (a.lock === 'prefer_body' ? 999 : 0) + a.analysis.roleSuit.body * 3.0 + a.analysis.density * 0.8 + a.analysis.versatility * 0.55 - a.analysis.conflictRisk * 0.9 - a.analysis.traits.cooling * 0.9 - a.analysis.traits.floral * 0.35;
     const bScore = (b.lock === 'prefer_body' ? 999 : 0) + b.analysis.roleSuit.body * 3.0 + b.analysis.density * 0.8 + b.analysis.versatility * 0.55 - b.analysis.conflictRisk * 0.9 - b.analysis.traits.cooling * 0.9 - b.analysis.traits.floral * 0.35;
     return bScore - aScore;
-  }).slice(0, Math.min(Math.max(4, count + 1), hydrated.length));
+  }).slice(0, Math.min(Math.max(3, count), hydrated.length));
 
   const candidates = [];
-  bodyCandidates.forEach((bodyFlavor, bodyIndex) => {
-    conceptOrder.forEach((conceptMode, conceptIndex) => {
+  bodyCandidates.forEach(bodyFlavor => {
+    conceptOrder.forEach(conceptMode => {
       const roleMap = this.assignRoles(hydrated, bodyFlavor, style, coolingLevel, conceptMode);
-      const conceptFamilies = this.shuffleFamilies(this.buildConceptFamilies(roleMap, count, style, coolingLevel, conceptMode), generationMeta, bodyIndex, conceptIndex);
-      conceptFamilies.forEach((family, familyIndex) => {
+      const conceptFamilies = this.buildConceptFamilies(roleMap, count, style, coolingLevel, conceptMode);
+      conceptFamilies.forEach(family => {
         const variant = this.buildVariant(hydrated, roleMap, family, style, coolingLevel, family.mode || conceptMode || 'base');
         if (variant) {
           variant.bodyCandidate = bodyFlavor.name;
           variant.conceptMode = conceptMode;
-          variant.noveltyBoost = this.computeVariantNoveltyBoost(variant, generationMeta && generationMeta.historyKey);
-          variant.generationMeta = { bodyIndex, conceptIndex, familyIndex };
           candidates.push(variant);
         }
       });
@@ -1903,16 +1972,16 @@ generateCandidateVariants(flavors, style, coolingLevel, limit = 4, forcedCount =
   const unique = [];
   const keys = new Set();
   candidates
-    .sort((a,b) => (b.compatibilityScore + (b.noveltyBoost || 0)) - (a.compatibilityScore + (a.noveltyBoost || 0)))
+    .sort((a,b) => b.compatibilityScore - a.compatibilityScore)
     .forEach(c => {
-      const key = this.variantFingerprint(c);
+      const key = c.items.map(i => `${i.name}:${i.role}:${i.percent}`).join('|') + '|' + c.mixConcept + '|' + (c.conceptMode || '');
       if (!keys.has(key)) {
         keys.add(key);
         unique.push(c);
       }
     });
 
-  return this.diversifyVariantSelection(unique, Math.max(limit, 14), generationMeta && generationMeta.historyKey).slice(0, limit);
+  return this.diversifyVariantSelection(unique, Math.max(limit, 12)).slice(0, limit);
 },
 
 assignRoles(flavors, bodyFlavor, style, coolingLevel, conceptMode = 'base') {
@@ -2196,6 +2265,62 @@ getConceptPriority(style, count, coolingLevel) {
   if (!out.includes('commercial_clean')) out.push('commercial_clean');
   if (!out.includes('base')) out.push('base');
   return Array.from(new Set(out));
+},
+
+buildGeneratedCoolingFlavor(style, percent, useMint = false) {
+  const name = useMint ? 'Мята / Auto Cooling' : 'Холод / Auto Cooling';
+  const description = useMint ? 'Служебная авто-добавка: лёгкая мятная свежесть, которую движок добавил вне выбранного пула вкусов.' : 'Служебная авто-добавка: нейтральный холод, который движок добавил вне выбранного пула вкусов.';
+  const flavor = {
+    id: 'generated-cooling-' + style + '-' + percent + '-' + (useMint ? 'mint' : 'ice'),
+    brand: 'Auto Cooling',
+    name,
+    description,
+    strength: '0 / 10',
+    type: useMint ? 'Свежий / мятный' : 'Свежий / холодный',
+    weight: '',
+    isGeneratedCooling: true
+  };
+  flavor.analysis = this.analyzeFlavor(flavor);
+  flavor.analysis.roleSuit.cooler = 10;
+  flavor.analysis.traits.cooling = Math.max(7, flavor.analysis.traits.cooling || 0);
+  flavor.analysis.traits.freshness = Math.max(6, flavor.analysis.traits.freshness || 0);
+  return flavor;
+},
+
+injectAdaptiveCooling(items, style, coolingLevel) {
+  if (coolingLevel === 'none') return items;
+
+  const existingCoolingPercent = items
+    .filter(item => item.role === 'cooler' || item.analysis.traits.cooling >= 5)
+    .reduce((sum, item) => sum + item.percent, 0);
+
+  const targetMap = { light: 5, medium: 8, strong: 12 };
+  let targetPercent = targetMap[coolingLevel] || 0;
+  if (style === 'fresh' || style === 'citrus') targetPercent += 1;
+  if (style === 'dessert') targetPercent = Math.max(3, targetPercent - 2);
+  if (style === 'tea' || style === 'spicy') targetPercent = Math.max(4, targetPercent - 1);
+
+  if (existingCoolingPercent >= targetPercent - 1) return items;
+
+  const addPercent = Math.max(3, Math.min(15, targetPercent - existingCoolingPercent));
+  const useMint = style === 'tea' || style === 'spicy' || style === 'balanced';
+  const generated = this.buildGeneratedCoolingFlavor(style, addPercent, useMint);
+
+  const scaleTo = 100 - addPercent;
+  let allocated = 0;
+  const scaled = items.map((item, idx) => {
+    const nextPercent = idx === items.length - 1 ? scaleTo - allocated : Math.max(1, Math.round(item.percent * scaleTo / 100));
+    allocated += nextPercent;
+    return { ...item, percent: nextPercent };
+  });
+
+  scaled.push({ ...generated, role: 'cooler', percent: addPercent, generatedOutsidePool: true });
+  const total = scaled.reduce((sum, item) => sum + item.percent, 0);
+  if (total !== 100) {
+    const firstReal = scaled.find(item => !item.isGeneratedCooling) || scaled[0];
+    firstReal.percent += 100 - total;
+  }
+  return scaled;
 },
 
 applyConceptBias(items, variantMode, style, coolingLevel) {
