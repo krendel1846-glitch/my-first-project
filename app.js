@@ -222,10 +222,170 @@ const app = {
 
   inferCategory(flavor) {
     const text = this.normalizeText([flavor.brand, flavor.name, flavor.description, flavor.type].join(' '));
+    const scoreByCategory = {};
+    const priority = ['cooling','dessert','creamy','beverage','citrus','berry','tropical','tea','spicy','floral','woody','fruit'];
     for (const [cat, keys] of Object.entries(this.categoryKeywords)) {
-      if (keys.some(k => text.includes(k))) return cat;
+      let score = 0;
+      keys.forEach(k => {
+        if (text.includes(k)) score += (k.length >= 5 ? 2 : 1);
+      });
+      scoreByCategory[cat] = score;
     }
-    return 'fruit';
+
+    if (text.includes('сорбет') || text.includes('sorbet')) scoreByCategory.dessert = (scoreByCategory.dessert || 0) + 3;
+    if (text.includes('sunrise') || text.includes('санрайз')) scoreByCategory.beverage = (scoreByCategory.beverage || 0) + 2;
+    if (text.includes('cactus') || text.includes('кактус')) {
+      scoreByCategory.tropical = (scoreByCategory.tropical || 0) + 2;
+      scoreByCategory.berry = Math.max(0, (scoreByCategory.berry || 0) - 1);
+    }
+    if (text.includes('banana') || text.includes('банан')) scoreByCategory.tropical = (scoreByCategory.tropical || 0) + 2;
+    if (text.includes('guava') || text.includes('гуава') || text.includes('guajava')) scoreByCategory.tropical = (scoreByCategory.tropical || 0) + 3;
+    if (text.includes('cola') || text.includes('кола') || text.includes('mirinda') || text.includes('sprite') || text.includes('fanta')) scoreByCategory.beverage = (scoreByCategory.beverage || 0) + 3;
+
+    let bestCategory = 'fruit';
+    let bestScore = -1;
+    priority.forEach(cat => {
+      const score = scoreByCategory[cat] || 0;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCategory = cat;
+      }
+    });
+    return bestScore > 0 ? bestCategory : 'fruit';
+  },
+
+  getCoolingProfile(level) {
+    const map = {
+      light: {
+        percent: 5,
+        min: 3,
+        max: 5,
+        primary: { brand: 'Must Have', name: 'Ice Mint / Must Have' },
+        alt: { brand: 'DarkSide', name: 'Supernova / DarkSide' }
+      },
+      medium: {
+        percent: 8,
+        min: 6,
+        max: 9,
+        primary: { brand: 'DarkSide', name: 'Supernova / DarkSide' },
+        alt: { brand: 'Sebero', name: 'Arctic Mix / Sebero' }
+      },
+      strong: {
+        percent: 12,
+        min: 10,
+        max: 15,
+        primary: { brand: 'Sebero', name: 'Arctic Mix / Sebero' },
+        alt: { brand: 'Must Have', name: 'Ice Mint / Must Have' }
+      }
+    };
+    return map[level] || null;
+  },
+
+  createSystemCooler(level) {
+    const profile = this.getCoolingProfile(level);
+    if (!profile) return null;
+    const flavor = {
+      id: 'auto-cooler-' + level,
+      brand: profile.primary.brand,
+      name: profile.primary.name,
+      description: 'Системный охладитель, автоматически добавленный по параметру холода.',
+      strength: 'Средняя',
+      type: 'Охлаждение',
+      weight: '',
+      analysis: {
+        category: 'cooling',
+        traits: {
+          sweetness: 0, acidity: 0, freshness: 7, cooling: level === 'strong' ? 10 : level === 'medium' ? 8 : 6,
+          creaminess: 0, dryness: 0, brightness: 4, depth: 0, floral: 0, spicy: 0, citrus: 0, berry: 0,
+          tropical: 0, green: 1, juicy: 0, candy: 0, tea: 0, woody: 0
+        },
+        strengthValue: 5,
+        loudness: level === 'strong' ? 8 : level === 'medium' ? 6 : 5,
+        suppressionRisk: level === 'strong' ? 7 : level === 'medium' ? 5 : 4,
+        tartness: 0,
+        density: 0,
+        dessertness: 0,
+        naturalness: 6,
+        heaviness: 1,
+        versatility: 6,
+        conflictRisk: 4,
+        heatResistance: 6,
+        revealSpeed: 8,
+        persistence: 6,
+        fadeRisk: 2,
+        dominance: level === 'strong' ? 8 : level === 'medium' ? 6 : 5,
+        backgroundability: 4,
+        roleSuit: { body: 0, support: 1, accent: 4, rounder: 0, cooler: 10 },
+        coolingMeta: profile
+      }
+    };
+    return flavor;
+  },
+
+  injectCoolingLayer(items, coolingLevel, style, variantMode) {
+    if (!coolingLevel || coolingLevel === 'none') return items.map(item => ({ ...item }));
+    const profile = this.getCoolingProfile(coolingLevel);
+    if (!profile) return items.map(item => ({ ...item }));
+
+    let cloned = items.map(item => ({ ...item }));
+    let coolerItem = cloned.find(item => item.role === 'cooler');
+    const targetPercent = profile.percent;
+
+    if (!coolerItem) {
+      coolerItem = this.createSystemCooler(coolingLevel);
+      cloned.push({ ...coolerItem, role: 'cooler', percent: targetPercent });
+    } else {
+      coolerItem.percent = targetPercent;
+      coolerItem.analysis = coolerItem.analysis || this.analyzeFlavor(coolerItem);
+      coolerItem.analysis.coolingMeta = profile;
+    }
+
+    const adjustable = cloned.filter(item => item.role !== 'cooler');
+    const adjustableTotal = adjustable.reduce((s, item) => s + item.percent, 0) || 100;
+    const desiredBaseTotal = 100 - targetPercent;
+    let allocated = 0;
+
+    adjustable.forEach((item, idx) => {
+      let next = idx === adjustable.length - 1 ? desiredBaseTotal - allocated : Math.max(1, Math.round(item.percent / adjustableTotal * desiredBaseTotal));
+      item.percent = next;
+      allocated += next;
+    });
+
+    const total = cloned.reduce((s, item) => s + item.percent, 0);
+    if (total !== 100 && cloned.length) cloned[0].percent += 100 - total;
+    return cloned;
+  },
+
+  scoreVariantNovelty(variant, history) {
+    const flavorKeys = variant.items.filter(i => i.role !== 'cooler').map(i => this.normalizeText(i.brand + '|' + i.name));
+    const comboKey = flavorKeys.slice().sort().join('::');
+    const bodyKey = variant.bodyName ? this.normalizeText(variant.bodyName) : '';
+    const conceptKey = this.normalizeText((variant.mixConcept || variant.styleVariant || '').toString());
+    const usage = history && history.usage ? history.usage : {};
+    const comboPenalty = ((usage.combos && usage.combos[comboKey]) || 0) * 18;
+    const bodyPenalty = ((usage.bodies && usage.bodies[bodyKey]) || 0) * 10;
+    const conceptPenalty = ((usage.concepts && usage.concepts[conceptKey]) || 0) * 6;
+    const flavorBonus = flavorKeys.reduce((sum, key) => sum + Math.max(0, 3 - ((usage.flavors && usage.flavors[key]) || 0)) * 6, 0);
+    return flavorBonus - comboPenalty - bodyPenalty - conceptPenalty;
+  },
+
+  commitVariantHistory(signature, chosen) {
+    const history = this.state.generationHistory[signature] || { usage: { combos:{}, bodies:{}, flavors:{}, concepts:{} } };
+    history.usage = history.usage || { combos:{}, bodies:{}, flavors:{}, concepts:{} };
+    const flavorKeys = chosen.items.filter(i => i.role !== 'cooler').map(i => this.normalizeText(i.brand + '|' + i.name));
+    const comboKey = flavorKeys.slice().sort().join('::');
+    const bodyKey = chosen.bodyName ? this.normalizeText(chosen.bodyName) : '';
+    const conceptKey = this.normalizeText((chosen.mixConcept || chosen.styleVariant || '').toString());
+
+    history.usage.combos[comboKey] = (history.usage.combos[comboKey] || 0) + 1;
+    history.usage.bodies[bodyKey] = (history.usage.bodies[bodyKey] || 0) + 1;
+    history.usage.concepts[conceptKey] = (history.usage.concepts[conceptKey] || 0) + 1;
+    flavorKeys.forEach(key => {
+      history.usage.flavors[key] = (history.usage.flavors[key] || 0) + 1;
+    });
+
+    history.lastUpdated = Date.now();
+    this.state.generationHistory[signature] = history;
   },
 
   inferStrengthValue(strength) {
@@ -259,24 +419,37 @@ const app = {
     const naturalness = Math.max(0, Math.min(10, Math.round(7 - traits.candy * 0.45 - traits.floral * 0.12 + traits.green * 0.12 + traits.berry * 0.08)));
     const heaviness = Math.max(0, Math.min(10, Math.round((density * 0.45) + (dessertness * 0.30) + (traits.depth * 0.15) - (traits.freshness * 0.10))));
 
+    const categoryLoudnessBoost = {
+      beverage: 1.0,
+      citrus: 1.1,
+      berry: 0.8,
+      tropical: 0.7,
+      dessert: 0.4,
+      creamy: 0.3,
+      cooling: 1.8,
+      tea: 0.6
+    }[category] || 0;
+
     const loudness = Math.max(1, Math.min(10, Math.round(
-      0.24 * strengthValue +
-      0.18 * traits.brightness +
-      0.16 * traits.cooling +
-      0.12 * traits.floral +
-      0.12 * traits.spicy +
-      0.10 * traits.candy +
-      0.08 * traits.citrus
+      0.34 * strengthValue +
+      0.28 * traits.brightness +
+      0.18 * traits.cooling +
+      0.15 * traits.floral +
+      0.14 * traits.spicy +
+      0.12 * traits.candy +
+      0.12 * traits.citrus +
+      0.10 * acidity +
+      categoryLoudnessBoost
     )));
 
     const suppressionRisk = Math.max(1, Math.min(10, Math.round(
-      0.25 * loudness +
-      0.22 * traits.cooling +
+      0.30 * loudness +
+      0.25 * traits.cooling +
       0.16 * traits.floral +
-      0.12 * traits.spicy +
+      0.14 * traits.spicy +
       0.10 * traits.citrus +
-      0.08 * heaviness +
-      0.07 * traits.candy
+      0.10 * heaviness +
+      0.08 * traits.candy
     )));
 
     const bodySuit = Math.max(0, Math.min(10, Math.round(
@@ -1579,7 +1752,7 @@ const app = {
     score -= pairwise.filter(p => p.conflict >= 3).length * 6;
     score -= group.filter(f => f.analysis.suppressionRisk >= 8).length * 3;
     if (coolingLevel === 'none') score -= group.filter(f => f.analysis.traits.cooling >= 6).length * 5;
-    if (coolingLevel === 'strong') score += group.filter(f => f.analysis.traits.cooling >= 5).length * 3;
+    if (coolingLevel !== 'none') score += pairwise.filter(p => p.score > 1).length * 1.5;
     if (!fixedComposition) score += group.filter(f => f.analysis.roleSuit.body >= 5).length * 2;
     return score;
   },
@@ -1604,88 +1777,27 @@ const app = {
   rotateManualVariants(variants, selected, targetCount, style, coolingLevel, resultCount) {
     if (!variants.length) return [];
     const signature = this.buildGenerationSignature(selected, targetCount, style, coolingLevel);
-    const history = this.state.generationHistory[signature] || { cursor: 0, recentCombos: [], recentBodies: [], usage: {}, conceptUsage: {} };
-    const localUsage = new Map(Object.entries(history.usage || {}));
-    const localConceptUsage = new Map(Object.entries(history.conceptUsage || {}));
-    const recentCombos = Array.isArray(history.recentCombos) ? history.recentCombos.slice() : [];
-    const recentBodies = Array.isArray(history.recentBodies) ? history.recentBodies.slice() : [];
-    const selectedKeys = selected.map(f => this.normalizeText(f.brand + ':' + f.name));
+    const history = this.state.generationHistory[signature] || { usage: { combos:{}, bodies:{}, flavors:{}, concepts:{} } };
+    const scored = variants.map((variant, index) => ({
+      variant,
+      index,
+      score: (variant.compatibilityScore * 1.4) + this.scoreVariantNovelty(variant, history)
+    })).sort((a, b) => b.score - a.score);
+
     const chosen = [];
-    const pool = variants.slice();
+    const usedCombos = new Set();
+    const take = Math.min(resultCount, scored.length);
 
-    const getComboKey = (variant) => variant.items.filter(item => item.role !== 'cooler').map(item => this.normalizeText(item.brand + ':' + item.name)).sort().join('|');
-    const getBodyKey = (variant) => {
-      const body = variant.items.find(item => item.role === 'body') || variant.items[0];
-      return body ? this.normalizeText(body.brand + ':' + body.name) : '';
-    };
-
-    while (pool.length && chosen.length < Math.min(resultCount, pool.length)) {
-      let bestIndex = 0;
-      let bestScore = -Infinity;
-
-      pool.forEach((variant, idx) => {
-        const comboKey = getComboKey(variant);
-        const bodyKey = getBodyKey(variant);
-        const conceptKey = this.normalizeText(variant.mixConcept || variant.styleVariant || '');
-        const variantFlavorKeys = variant.items.filter(item => item.role !== 'cooler').map(item => this.normalizeText(item.brand + ':' + item.name));
-
-        let score = variant.compatibilityScore;
-        const comboRepeatPenalty = recentCombos.includes(comboKey) ? 40 : 0;
-        const bodyRepeatTail = recentBodies.slice(-2);
-        const bodyRepeatPenalty = bodyRepeatTail.filter(x => x === bodyKey).length >= 2 ? 28 : (bodyRepeatTail.includes(bodyKey) ? 12 : 0);
-        const conceptPenalty = (localConceptUsage.get(conceptKey) || 0) * 3;
-
-        let coverageBonus = 0;
-        selectedKeys.forEach(key => {
-          if (variantFlavorKeys.includes(key)) {
-            coverageBonus += Math.max(0, 8 - ((localUsage.get(key) || 0) * 2.2));
-          }
-        });
-
-        const internalOverlapPenalty = chosen.reduce((sum, existing) => {
-          const existingSet = new Set(existing.items.filter(item => item.role !== 'cooler').map(item => this.normalizeText(item.brand + ':' + item.name)));
-          const overlap = variantFlavorKeys.filter(key => existingSet.has(key)).length;
-          return sum + overlap * 8;
-        }, 0);
-
-        score += coverageBonus;
-        score -= comboRepeatPenalty;
-        score -= bodyRepeatPenalty;
-        score -= conceptPenalty;
-        score -= internalOverlapPenalty;
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestIndex = idx;
-        }
-      });
-
-      const variant = pool.splice(bestIndex, 1)[0];
+    for (const entry of scored) {
+      const variant = entry.variant;
+      const comboKey = variant.items.filter(i => i.role !== 'cooler').map(i => this.normalizeText(i.brand + '|' + i.name)).sort().join('::');
+      if (usedCombos.has(comboKey)) continue;
       chosen.push(variant);
-
-      const comboKey = getComboKey(variant);
-      const bodyKey = getBodyKey(variant);
-      const conceptKey = this.normalizeText(variant.mixConcept || variant.styleVariant || '');
-
-      recentCombos.push(comboKey);
-      recentBodies.push(bodyKey);
-      if (recentCombos.length > 6) recentCombos.shift();
-      if (recentBodies.length > 4) recentBodies.shift();
-
-      variant.items.filter(item => item.role !== 'cooler').forEach(item => {
-        const key = this.normalizeText(item.brand + ':' + item.name);
-        localUsage.set(key, (localUsage.get(key) || 0) + 1);
-      });
-      localConceptUsage.set(conceptKey, (localConceptUsage.get(conceptKey) || 0) + 1);
+      usedCombos.add(comboKey);
+      if (chosen.length >= take) break;
     }
 
-    this.state.generationHistory[signature] = {
-      cursor: ((history.cursor || 0) + chosen.length) % Math.max(1, variants.length),
-      recentCombos,
-      recentBodies,
-      usage: Object.fromEntries(localUsage.entries()),
-      conceptUsage: Object.fromEntries(localConceptUsage.entries())
-    };
+    chosen.forEach(variant => this.commitVariantHistory(signature, variant));
     return chosen;
   },
 
@@ -2169,136 +2281,6 @@ buildConceptFamilies(roleMap, count, style, coolingLevel, conceptMode = 'base') 
     return families.find(f => f.mode === mode) || families[0] || { name:'base', roles:{body:60, support:25, accent:15}, mode:'base' };
   },
 
-
-  getCoolingSpec(coolingLevel) {
-    const map = {
-      none: null,
-      light: {
-        percent: 5,
-        range: '3–5%',
-        level: 'лёгкий',
-        primary: { brand: 'Must Have', name: 'Ice Mint / Must Have' },
-        alternative: { brand: 'DarkSide', name: 'Supernova / DarkSide' }
-      },
-      medium: {
-        percent: 8,
-        range: '6–9%',
-        level: 'средний',
-        primary: { brand: 'DarkSide', name: 'Supernova / DarkSide' },
-        alternative: { brand: 'Must Have', name: 'Ice Mint / Must Have' }
-      },
-      strong: {
-        percent: 12,
-        range: '10–15%',
-        level: 'яркий',
-        primary: { brand: 'Sebero', name: 'Arctic Mix / Sebero' },
-        alternative: { brand: 'DarkSide', name: 'Supernova / DarkSide' }
-      }
-    };
-    return map[coolingLevel] || null;
-  },
-
-  createCoolingFlavor(spec) {
-    return {
-      id: 'auto-cooler-' + spec.level,
-      brand: spec.primary.brand,
-      name: spec.primary.name,
-      description: 'Автоматически добавленный охлаждающий слой для корректировки свежести микса.',
-      strength: '',
-      type: 'Охладитель',
-      weight: '',
-      analysis: {
-        category: 'cooling',
-        traits: {
-          sweetness: 0, acidity: 0, freshness: 9, cooling: 10, creaminess: 0, dryness: 1,
-          brightness: 6, depth: 0, floral: 0, spicy: 0, citrus: 0, berry: 0, tropical: 0,
-          green: 2, juicy: 0, candy: 1, tea: 0, woody: 0
-        },
-        density: 1,
-        creaminess: 0,
-        heaviness: 1,
-        naturalness: 4,
-        loudness: 8,
-        versatility: 5,
-        conflictRisk: 4,
-        suppressionRisk: 8,
-        revealSpeed: 8,
-        persistence: 7,
-        backgroundability: 2,
-        roleSuit: { body: 0, support: 1, accent: 5, rounder: 0, cooler: 10 }
-      },
-      coolingMeta: {
-        auto: true,
-        range: spec.range,
-        level: spec.level,
-        alternative: spec.alternative.name
-      }
-    };
-  },
-
-  applyCoolingLayer(items, coolingLevel) {
-    const spec = this.getCoolingSpec(coolingLevel);
-    if (!spec || !items.length) return items;
-
-    const existingCooler = items.find(item => item.role === 'cooler');
-    if (existingCooler) {
-      const target = spec.percent;
-      const delta = target - existingCooler.percent;
-      existingCooler.percent = target;
-      if (delta !== 0) {
-        const donors = items.filter(item => item !== existingCooler);
-        let donorTotal = donors.reduce((sum, item) => sum + item.percent, 0);
-        let allocated = 0;
-        donors.forEach((item, idx) => {
-          if (donorTotal <= 0) return;
-          const share = idx === donors.length - 1 ? delta - allocated : Math.round(delta * (item.percent / donorTotal));
-          item.percent -= share;
-          allocated += share;
-        });
-        donors.forEach(item => { if (item.percent < 1) item.percent = 1; });
-        const total = items.reduce((sum, item) => sum + item.percent, 0);
-        if (total !== 100) items[0].percent += 100 - total;
-      }
-      existingCooler.coolingMeta = Object.assign({}, existingCooler.coolingMeta || {}, {
-        auto: false,
-        range: spec.range,
-        level: spec.level,
-        alternative: spec.alternative.name
-      });
-      return items;
-    }
-
-    const coolerFlavor = this.createCoolingFlavor(spec);
-    const coolerPercent = spec.percent;
-    const donors = items.slice().sort((a, b) => b.percent - a.percent);
-    let remaining = coolerPercent;
-
-    donors.forEach((item, idx) => {
-      if (remaining <= 0) return;
-      const floor = item.role === 'body' ? 35 : 10;
-      const maxTake = Math.max(0, item.percent - floor);
-      let take = idx === donors.length - 1 ? remaining : Math.min(maxTake, Math.max(1, Math.round(coolerPercent * (item.percent / 100))));
-      take = Math.min(take, remaining, maxTake);
-      item.percent -= take;
-      remaining -= take;
-    });
-
-    if (remaining > 0) {
-      donors.forEach(item => {
-        if (remaining <= 0) return;
-        const extra = Math.min(remaining, Math.max(0, item.percent - 1));
-        item.percent -= extra;
-        remaining -= extra;
-      });
-    }
-
-    items.push({ ...coolerFlavor, role: 'cooler', percent: coolerPercent });
-
-    const total = items.reduce((sum, item) => sum + item.percent, 0);
-    if (total !== 100) items[0].percent += 100 - total;
-    return items;
-  },
-
 buildVariant(flavors, roleMap, family, style, coolingLevel, variantMode='base') {
   const byRole = {};
   flavors.forEach(f => {
@@ -2343,12 +2325,12 @@ buildVariant(flavors, roleMap, family, style, coolingLevel, variantMode='base') 
   });
 
   if (!items.length) return null;
-  const biasedItems = this.applyConceptBias(items, variantMode, style, coolingLevel);
-  const withCooling = this.applyCoolingLayer(biasedItems, coolingLevel);
-  const total = withCooling.reduce((s,i)=>s+i.percent,0);
-  if (total !== 100) withCooling[0].percent += 100 - total;
+  let biasedItems = this.applyConceptBias(items, variantMode, style, coolingLevel);
+  biasedItems = this.injectCoolingLayer(biasedItems, coolingLevel, style, variantMode);
+  const total = biasedItems.reduce((s,i)=>s+i.percent,0);
+  if (total !== 100) biasedItems[0].percent += 100 - total;
 
-  const evaluated = this.evaluateMix(withCooling, style, variantMode);
+  const evaluated = this.evaluateMix(biasedItems, style, variantMode);
   evaluated.mixConcept = family.name || evaluated.styleVariant || 'Вариант';
   evaluated.ratioName = family.name || '';
   evaluated.familyRoles = family.roles || {};
@@ -2620,6 +2602,7 @@ evaluateMix(items, style, variantMode) {
       accents: accents.map(x => x.name),
       rounders: rounders.map(x => x.name),
       coolers: coolers.map(x => x.name),
+      coolingAdvice: coolers[0] && coolers[0].analysis && coolers[0].analysis.coolingMeta ? coolers[0].analysis.coolingMeta : null,
       roleConflicts: this.detectRoleConflicts(items, body),
       antiErrorAudit
     },
@@ -2813,11 +2796,7 @@ evaluateMix(items, style, variantMode) {
     if (supports.length) text += `Поддержка (${supports.join(', ')}) расширяет тело и помогает вкусу читаться объемнее. `;
     if (accents.length) text += `Акцент (${accents.join(', ')}) добавляет верхнюю ноту и делает профиль живее. `;
     if (rounders.length) text += `Округлитель (${rounders.join(', ')}) сглаживает резкость и делает вкус цельнее. `;
-    if (coolers.length) {
-      const coolerItem = items.find(i => i.role === 'cooler');
-      const coolerNote = coolerItem && coolerItem.coolingMeta ? ` Рекомендуемый уровень: ${coolerItem.coolingMeta.level}, рабочий диапазон ${coolerItem.coolingMeta.range}.` : '';
-      text += `Охладитель (${coolers.join(', ')}) добавляет свежесть, но не должен выходить вперед.${coolerNote} `;
-    }
+    if (coolers.length) text += `Охладитель (${coolers.join(', ')}) добавляет свежесть, но не должен выходить вперед. `;
     text += `Итоговый профиль: ${this.profileText(vector)}. `;
     text += this.describeConcept(items, variantMode) + ' ';
     if (risks.some(r => r.level === 'high')) text += 'Есть риски, поэтому этот вариант требует аккуратной процентовки.';
@@ -3081,6 +3060,7 @@ evaluateMix(items, style, variantMode) {
             <div class="kv-row"><div>Акцент</div><div>${res.architecture.accents.length ? this.escapeHtml(res.architecture.accents.join(', ')) : 'нет яркого акцента'}</div></div>
             <div class="kv-row"><div>Округлитель</div><div>${res.architecture.rounders.length ? this.escapeHtml(res.architecture.rounders.join(', ')) : 'не нужен / отсутствует'}</div></div>
             <div class="kv-row"><div>Охладитель</div><div>${res.architecture.coolers.length ? this.escapeHtml(res.architecture.coolers.join(', ')) : 'нет'}</div></div>
+            ${res.architecture.coolingAdvice ? `<div class="kv-row"><div>Холод</div><div>${res.architecture.coolingAdvice.percent}% · диапазон ${res.architecture.coolingAdvice.min}–${res.architecture.coolingAdvice.max}% · альтернатива ${this.escapeHtml(res.architecture.coolingAdvice.alt.brand + ' ' + res.architecture.coolingAdvice.alt.name)}</div></div>` : ''}
             <div class="kv-row"><div>Профиль</div><div>${this.escapeHtml(res.profileText)}</div></div>
           </div>
         </div>
