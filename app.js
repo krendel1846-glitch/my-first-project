@@ -1522,17 +1522,13 @@ const app = {
       workingFlavors = this.pruneWeakestFlavor(workingFlavors, style).slice(0, Math.max(4, desiredCount));
     }
 
-    const signature = this.buildGenerationSignature(selected, desiredCount, style, coolingLevel);
-    const coverageHistory = this.getGenerationCoverageHistory(signature);
-
-    const groups = this.buildManualFlavorGroups(workingFlavors, style, coolingLevel, desiredCount, fixedComposition, coverageHistory);
+    const groups = this.buildManualFlavorGroups(workingFlavors, style, coolingLevel, desiredCount, fixedComposition);
     let variants = [];
     groups.forEach(group => {
       const candidateVariants = this.generateCandidateVariants(group, style, coolingLevel, forceAlternatives ? 12 : 10, desiredCount);
       candidateVariants.forEach(variant => {
         variant.sourceSelectionSize = group.length;
         variant.selectedPoolSize = selected.length;
-        variant.coverageScore = this.scoreCoverageNeedForVariant(variant, coverageHistory);
         variants.push(variant);
       });
     });
@@ -1540,7 +1536,7 @@ const app = {
     const unique = [];
     const seen = new Set();
     variants
-      .sort((a,b) => (b.compatibilityScore + (b.coverageScore || 0)) - (a.compatibilityScore + (a.coverageScore || 0)))
+      .sort((a,b) => b.compatibilityScore - a.compatibilityScore)
       .forEach(variant => {
         const key = variant.items.map(x => x.brand + ':' + x.name + ':' + x.role + ':' + x.percent).sort().join('|') + '|' + (variant.mixConcept || variant.styleVariant || '');
         if (!seen.has(key)) {
@@ -1549,19 +1545,19 @@ const app = {
         }
       });
 
-    const diversified = this.diversifyVariantSelection(unique, Math.max(resultCount * 6, forceAlternatives ? 14 : 10));
+    const diversified = this.diversifyVariantSelection(unique, Math.max(resultCount * 4, forceAlternatives ? 10 : 8));
     if (forceAlternatives) return diversified;
     return this.rotateManualVariants(diversified, selected, desiredCount, style, coolingLevel, resultCount);
   },
 
-  buildManualFlavorGroups(flavors, style, coolingLevel, targetCount, fixedComposition, coverageHistory = null) {
+  buildManualFlavorGroups(flavors, style, coolingLevel, targetCount, fixedComposition) {
     if (flavors.length <= targetCount) return [flavors];
     const combos = this.getCombinations(flavors, targetCount);
     const scored = combos.map(group => ({
       group,
-      score: this.scoreManualGroup(group, style, coolingLevel, fixedComposition) + this.scoreCoverageNeedForGroup(group, coverageHistory)
+      score: this.scoreManualGroup(group, style, coolingLevel, fixedComposition)
     })).sort((a,b) => b.score - a.score);
-    return scored.slice(0, 18).map(x => x.group);
+    return scored.slice(0, 12).map(x => x.group);
   },
 
   scoreManualGroup(group, style, coolingLevel, fixedComposition) {
@@ -1605,105 +1601,44 @@ const app = {
     return result;
   },
 
-  getGenerationCoverageHistory(signature) {
-    const raw = this.state.generationHistory[signature] || {};
-    return {
-      cursor: raw.cursor || 0,
-      recentVariantKeys: Array.isArray(raw.recentVariantKeys) ? raw.recentVariantKeys.slice() : [],
-      flavorUsage: raw.flavorUsage || {},
-      bodyUsage: raw.bodyUsage || {},
-      conceptUsage: raw.conceptUsage || {}
-    };
-  },
-
-  scoreCoverageNeedForGroup(group, history = null) {
-    if (!history) return 0;
-    let bonus = 0;
-    group.forEach(flavor => {
-      const key = this.normalizeText(flavor.brand + '|' + flavor.name);
-      const used = history.flavorUsage[key] || 0;
-      bonus += Math.max(0, 8 - used * 2.2);
-    });
-    bonus += new Set(group.map(flavor => flavor.analysis.category)).size * 1.2;
-    return bonus;
-  },
-
-  scoreCoverageNeedForVariant(variant, history = null) {
-    if (!history) return 0;
-    let bonus = 0;
-    variant.items.forEach(item => {
-      const key = this.normalizeText(item.brand + '|' + item.name);
-      const used = history.flavorUsage[key] || 0;
-      bonus += Math.max(0, 10 - used * 2.5);
-    });
-    const bodyKey = this.normalizeText((variant.bodyName || '') + '');
-    bonus += Math.max(0, 7 - ((history.bodyUsage[bodyKey] || 0) * 3));
-    const conceptKey = this.normalizeText(variant.mixConcept || variant.styleVariant || 'base');
-    bonus += Math.max(0, 4 - ((history.conceptUsage[conceptKey] || 0) * 1.5));
-    return bonus;
-  },
-
-  variantCoverageKey(variant) {
-    const parts = variant.items.map(x => this.normalizeText(x.brand + '|' + x.name + '|' + x.role + '|' + x.percent)).sort();
-    return parts.join('||') + '::' + this.normalizeText(variant.mixConcept || variant.styleVariant || 'base');
-  },
-
   rotateManualVariants(variants, selected, targetCount, style, coolingLevel, resultCount) {
     if (!variants.length) return [];
     const signature = this.buildGenerationSignature(selected, targetCount, style, coolingLevel);
-    const history = this.getGenerationCoverageHistory(signature);
-    const pool = variants.slice();
-    const chosen = [];
-    const take = Math.min(resultCount, pool.length);
+    const selectedKeys = selected.map(f => this.normalizeText(f.brand + '|' + f.name));
+    const history = this.state.generationHistory[signature] || { cursor: 0, flavorUsage: {}, bodyUsage: {}, seenVariants: {} };
+    const flavorUsage = history.flavorUsage || {};
+    const bodyUsage = history.bodyUsage || {};
+    const seenVariants = history.seenVariants || {};
+    const ranked = variants.map((variant, idx) => {
+      const variantKeys = variant.items.map(i => this.normalizeText(i.brand + '|' + i.name));
+      const unusedBoost = variantKeys.reduce((sum, key) => sum + (flavorUsage[key] ? 0 : 10), 0);
+      const lowUseBoost = variantKeys.reduce((sum, key) => sum + Math.max(0, 6 - Math.min(6, flavorUsage[key] || 0)), 0);
+      const bodyKey = this.normalizeText((variant.items.find(i => i.role === 'body') || variant.items[0]).brand + '|' + (variant.items.find(i => i.role === 'body') || variant.items[0]).name);
+      const bodyPenalty = Math.max(0, (bodyUsage[bodyKey] || 0) - 1) * 10;
+      const repeatPenalty = Math.max(0, (seenVariants[variant.items.map(i => this.normalizeText(i.brand + '|' + i.name + '|' + i.role)).sort().join('::')] || 0)) * 18;
+      const coveragePenalty = selectedKeys.filter(key => !variantKeys.includes(key) && !(flavorUsage[key] >= 1)).length * 8;
+      return { variant, idx, adjusted: variant.compatibilityScore + unusedBoost + lowUseBoost - bodyPenalty - repeatPenalty - coveragePenalty };
+    }).sort((a,b) => b.adjusted - a.adjusted || a.idx - b.idx);
 
-    while (pool.length && chosen.length < take) {
-      let bestIndex = 0;
-      let bestScore = -Infinity;
-
-      pool.forEach((variant, idx) => {
-        let adjusted = variant.compatibilityScore + this.scoreCoverageNeedForVariant(variant, history);
-        const variantKey = this.variantCoverageKey(variant);
-        if (history.recentVariantKeys.includes(variantKey)) adjusted -= 18;
-
-        variant.items.forEach(item => {
-          const usageKey = this.normalizeText(item.brand + '|' + item.name);
-          adjusted -= (history.flavorUsage[usageKey] || 0) * 2.5;
-        });
-
-        const bodyKey = this.normalizeText((variant.bodyName || '') + '');
-        adjusted -= (history.bodyUsage[bodyKey] || 0) * 5;
-
-        const conceptKey = this.normalizeText(variant.mixConcept || variant.styleVariant || 'base');
-        adjusted -= (history.conceptUsage[conceptKey] || 0) * 2.5;
-
-        chosen.forEach(existing => {
-          const overlap = variant.items.filter(item => existing.items.some(prev => this.normalizeText(prev.brand + '|' + prev.name) === this.normalizeText(item.brand + '|' + item.name))).length;
-          adjusted -= overlap * 5;
-          if (this.normalizeText(existing.bodyName || '') === bodyKey) adjusted -= 10;
-        });
-
-        if (adjusted > bestScore) {
-          bestScore = adjusted;
-          bestIndex = idx;
-        }
-      });
-
-      const picked = pool.splice(bestIndex, 1)[0];
-      chosen.push(picked);
-      picked.items.forEach(item => {
+    const take = Math.min(resultCount, ranked.length);
+    const chosen = ranked.slice(0, take).map(x => x.variant);
+    chosen.forEach(variant => {
+      const sig = variant.items.map(i => this.normalizeText(i.brand + '|' + i.name + '|' + i.role)).sort().join('::');
+      seenVariants[sig] = (seenVariants[sig] || 0) + 1;
+      variant.items.forEach(item => {
         const key = this.normalizeText(item.brand + '|' + item.name);
-        history.flavorUsage[key] = (history.flavorUsage[key] || 0) + 1;
+        flavorUsage[key] = (flavorUsage[key] || 0) + 1;
       });
-      const bodyKey = this.normalizeText((picked.bodyName || '') + '');
-      history.bodyUsage[bodyKey] = (history.bodyUsage[bodyKey] || 0) + 1;
-      const conceptKey = this.normalizeText(picked.mixConcept || picked.styleVariant || 'base');
-      history.conceptUsage[conceptKey] = (history.conceptUsage[conceptKey] || 0) + 1;
-      history.recentVariantKeys.push(this.variantCoverageKey(picked));
-      history.recentVariantKeys = history.recentVariantKeys.slice(-24);
-    }
-
-    history.cursor = (history.cursor + chosen.length) % Math.max(1, variants.length);
-    this.state.generationHistory[signature] = history;
+      const body = variant.items.find(i => i.role === 'body') || variant.items[0];
+      const bodyKey = this.normalizeText(body.brand + '|' + body.name);
+      bodyUsage[bodyKey] = (bodyUsage[bodyKey] || 0) + 1;
+    });
+    this.state.generationHistory[signature] = {
+      cursor: (history.cursor || 0) + take,
+      flavorUsage,
+      bodyUsage,
+      seenVariants
+    };
     return chosen;
   },
 
@@ -2235,7 +2170,7 @@ buildVariant(flavors, roleMap, family, style, coolingLevel, variantMode='base') 
   const total = biasedItems.reduce((s,i)=>s+i.percent,0);
   if (total !== 100) biasedItems[0].percent += 100 - total;
 
-  const evaluated = this.evaluateMix(biasedItems, style, variantMode);
+  const evaluated = this.evaluateMix(biasedItems, style, variantMode, coolingLevel);
   evaluated.mixConcept = family.name || evaluated.styleVariant || 'Вариант';
   evaluated.ratioName = family.name || '';
   evaluated.familyRoles = family.roles || {};
@@ -2265,62 +2200,6 @@ getConceptPriority(style, count, coolingLevel) {
   if (!out.includes('commercial_clean')) out.push('commercial_clean');
   if (!out.includes('base')) out.push('base');
   return Array.from(new Set(out));
-},
-
-buildGeneratedCoolingFlavor(style, percent, useMint = false) {
-  const name = useMint ? 'Мята / Auto Cooling' : 'Холод / Auto Cooling';
-  const description = useMint ? 'Служебная авто-добавка: лёгкая мятная свежесть, которую движок добавил вне выбранного пула вкусов.' : 'Служебная авто-добавка: нейтральный холод, который движок добавил вне выбранного пула вкусов.';
-  const flavor = {
-    id: 'generated-cooling-' + style + '-' + percent + '-' + (useMint ? 'mint' : 'ice'),
-    brand: 'Auto Cooling',
-    name,
-    description,
-    strength: '0 / 10',
-    type: useMint ? 'Свежий / мятный' : 'Свежий / холодный',
-    weight: '',
-    isGeneratedCooling: true
-  };
-  flavor.analysis = this.analyzeFlavor(flavor);
-  flavor.analysis.roleSuit.cooler = 10;
-  flavor.analysis.traits.cooling = Math.max(7, flavor.analysis.traits.cooling || 0);
-  flavor.analysis.traits.freshness = Math.max(6, flavor.analysis.traits.freshness || 0);
-  return flavor;
-},
-
-injectAdaptiveCooling(items, style, coolingLevel) {
-  if (coolingLevel === 'none') return items;
-
-  const existingCoolingPercent = items
-    .filter(item => item.role === 'cooler' || item.analysis.traits.cooling >= 5)
-    .reduce((sum, item) => sum + item.percent, 0);
-
-  const targetMap = { light: 5, medium: 8, strong: 12 };
-  let targetPercent = targetMap[coolingLevel] || 0;
-  if (style === 'fresh' || style === 'citrus') targetPercent += 1;
-  if (style === 'dessert') targetPercent = Math.max(3, targetPercent - 2);
-  if (style === 'tea' || style === 'spicy') targetPercent = Math.max(4, targetPercent - 1);
-
-  if (existingCoolingPercent >= targetPercent - 1) return items;
-
-  const addPercent = Math.max(3, Math.min(15, targetPercent - existingCoolingPercent));
-  const useMint = style === 'tea' || style === 'spicy' || style === 'balanced';
-  const generated = this.buildGeneratedCoolingFlavor(style, addPercent, useMint);
-
-  const scaleTo = 100 - addPercent;
-  let allocated = 0;
-  const scaled = items.map((item, idx) => {
-    const nextPercent = idx === items.length - 1 ? scaleTo - allocated : Math.max(1, Math.round(item.percent * scaleTo / 100));
-    allocated += nextPercent;
-    return { ...item, percent: nextPercent };
-  });
-
-  scaled.push({ ...generated, role: 'cooler', percent: addPercent, generatedOutsidePool: true });
-  const total = scaled.reduce((sum, item) => sum + item.percent, 0);
-  if (total !== 100) {
-    const firstReal = scaled.find(item => !item.isGeneratedCooling) || scaled[0];
-    firstReal.percent += 100 - total;
-  }
-  return scaled;
 },
 
 applyConceptBias(items, variantMode, style, coolingLevel) {
@@ -2448,7 +2327,7 @@ inferSmokingScenario(items, style, vector) {
     return (map[pair] || 0) + (bad[pair] || 0);
   },
 
-evaluateMix(items, style, variantMode) {
+evaluateMix(items, style, variantMode, coolingLevel = 'none') {
   const body = items.find(x => x.role === 'body') || [...items].sort((a,b)=>b.percent-a.percent)[0];
   const supports = items.filter(x => x.role === 'support');
   const accents = items.filter(x => x.role === 'accent');
@@ -2566,6 +2445,7 @@ evaluateMix(items, style, variantMode) {
       roleConflicts: this.detectRoleConflicts(items, body),
       antiErrorAudit
     },
+    coolingRecommendation: this.buildCoolingRecommendation(items, coolingLevel, style, vector),
     sensoryBalance: {
       sweetness: this.bucket(vector.sweetness),
       acidity: this.bucket(vector.acidity),
@@ -2948,6 +2828,40 @@ evaluateMix(items, style, variantMode) {
     };
   },
 
+
+  buildCoolingRecommendation(items, coolingLevel, style, vector) {
+    const directCooler = items.filter(item => item.role === 'cooler' || item.analysis.category === 'cooling' || item.analysis.traits.cooling >= 6)
+      .sort((a,b) => b.percent - a.percent)[0] || null;
+    const presets = {
+      light: { percent: 5, range: '3–6%', level: 'Легкий холод' },
+      medium: { percent: 8, range: '6–10%', level: 'Средний холод' },
+      strong: { percent: 12, range: '10–15%', level: 'Яркий холод' }
+    };
+    if ((!coolingLevel || coolingLevel === 'none') && !directCooler) return null;
+    const preset = presets[coolingLevel] || { percent: directCooler ? Math.max(3, Math.min(15, directCooler.percent)) : 6, range: '3–8%', level: 'Холод по вкусу' };
+    const examples = [
+      { brand:'Must Have', name:'Ice Mint', kind:'mint' },
+      { brand:'DarkSide', name:'Supernova', kind:'cooler' },
+      { brand:'Sebero', name:'Arctic Mix', kind:'cooler' },
+      { brand:'BlackBurn', name:'Ice Baby', kind:'cooler' }
+    ];
+    let type = 'Чистый холод';
+    if (style === 'dessert') type = 'Мягкий холод / мятный штрих';
+    if (style === 'fresh' || vector.freshness >= 5) type = 'Освежающий холод';
+    if (directCooler && /mint|мят/i.test(directCooler.name)) type = 'Мятное охлаждение';
+    const primary = directCooler ? { brand: directCooler.brand, name: directCooler.name } : (style === 'dessert' ? examples[0] : examples[1]);
+    const alt = examples.find(x => (x.brand + x.name) !== (primary.brand + primary.name)) || examples[0];
+    return {
+      enabled: true,
+      level: preset.level,
+      percent: directCooler ? Math.max(3, Math.min(15, directCooler.percent)) : preset.percent,
+      range: preset.range,
+      type,
+      primaryLabel: primary.brand + ' ' + primary.name,
+      alternativeLabel: alt.brand + ' ' + alt.name,
+      note: directCooler ? 'Охлаждение уже встроено в итоговый рецепт и показано в составе.' : 'Если в выбранном пуле нет готового кулера, можно добавить внешний охладитель отдельным слоем.'
+    };
+  },
   renderResults(results, meta) {
     const container = document.getElementById('results-area');
     const summary = `<div class="card">
@@ -3019,11 +2933,23 @@ evaluateMix(items, style, variantMode) {
             <div class="kv-row"><div>Поддержка</div><div>${res.architecture.mainSupport.length ? this.escapeHtml(res.architecture.mainSupport.join(', ')) : 'нет выраженной поддержки'}</div></div>
             <div class="kv-row"><div>Акцент</div><div>${res.architecture.accents.length ? this.escapeHtml(res.architecture.accents.join(', ')) : 'нет яркого акцента'}</div></div>
             <div class="kv-row"><div>Округлитель</div><div>${res.architecture.rounders.length ? this.escapeHtml(res.architecture.rounders.join(', ')) : 'не нужен / отсутствует'}</div></div>
-            <div class="kv-row"><div>Охладитель</div><div>${res.architecture.coolers.length ? this.escapeHtml(res.architecture.coolers.join(', ')) : 'нет'}</div></div>
+            <div class="kv-row"><div>Охладитель</div><div>${res.coolingRecommendation ? this.escapeHtml((res.architecture.coolers.length ? res.architecture.coolers.join(', ') : res.coolingRecommendation.primaryLabel) + ' — ' + res.coolingRecommendation.percent + '%') : 'нет'}</div></div>
             <div class="kv-row"><div>Профиль</div><div>${this.escapeHtml(res.profileText)}</div></div>
           </div>
         </div>
       </div>
+
+      ${res.coolingRecommendation ? `
+      <div class="card" style="padding:14px;margin-top:14px">
+        <div class="section-title">Охлаждение / рекомендация по холоду</div>
+        <div class="kv">
+          <div class="kv-row"><div>Уровень</div><div><strong>${this.escapeHtml(res.coolingRecommendation.level)}</strong> — ${this.escapeHtml(res.coolingRecommendation.type)}</div></div>
+          <div class="kv-row"><div>Сколько добавить</div><div><strong>${res.coolingRecommendation.percent}%</strong> <span class="muted">(рабочий диапазон ${this.escapeHtml(res.coolingRecommendation.range)})</span></div></div>
+          <div class="kv-row"><div>Основной вариант</div><div>${this.escapeHtml(res.coolingRecommendation.primaryLabel)}</div></div>
+          <div class="kv-row"><div>Альтернатива</div><div>${this.escapeHtml(res.coolingRecommendation.alternativeLabel)}</div></div>
+        </div>
+        <div class="notice" style="margin-top:10px">${this.escapeHtml(res.coolingRecommendation.note)}</div>
+      </div>` : ''}
 
       <div class="grid grid-2" style="margin-top:14px">
         <div class="card" style="padding:14px;margin:0">
