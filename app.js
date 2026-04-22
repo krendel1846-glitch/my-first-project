@@ -3347,3 +3347,477 @@ if (document.readyState === 'loading') {
 } else {
   window.app.init();
 }
+
+/* v19 full manual pipeline rewrite + packing visual */
+(function(){
+  app.getPackingStyle = function() {
+    const el = document.getElementById('packing-style');
+    return el ? el.value : 'sectors';
+  };
+
+  app.ensurePackingStyleControl = function() {
+    const fixed = document.getElementById('fixed-composition');
+    if (!fixed || document.getElementById('packing-style')) return;
+    const parent = fixed.closest('.grid') || fixed.parentElement;
+    if (!parent) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML = '<label>Вид забивки</label><select id="packing-style"><option value="sectors">Секторами</option><option value="layers">Слоями</option></select>';
+    parent.appendChild(wrap);
+  };
+
+  app.getCoolingBudgetByLevel = function(level) {
+    if (level === 'light') return 5;
+    if (level === 'medium') return 8;
+    if (level === 'strong') return 12;
+    return 0;
+  };
+
+  app.getMethodologyConceptSpecs = function(count) {
+    if (count === 2) {
+      return [
+        { key:'body_forward', label:'Body forward', roles:['body','support'], ratios:[70,30] },
+        { key:'balanced', label:'Balanced', roles:['body','support'], ratios:[60,40] },
+        { key:'dual_body', label:'Dual body', roles:['body','body2'], ratios:[50,50] }
+      ];
+    }
+    if (count === 4) {
+      return [
+        { key:'body_forward', label:'Body forward', roles:['body','support','bridge','accent'], ratios:[40,30,20,10] },
+        { key:'balanced', label:'Balanced', roles:['body','support','accent','bridge'], ratios:[40,30,20,10] },
+        { key:'fresh_lifted', label:'Fresh lifted', roles:['body','support','accent','bridge'], ratios:[40,25,20,15] },
+        { key:'dessert_rounded', label:'Dessert rounded', roles:['body','rounder','support','accent'], ratios:[40,30,20,10] },
+        { key:'contrast_built', label:'Contrast built', roles:['body','support','contrast','bridge'], ratios:[40,25,20,15] },
+        { key:'dual_body', label:'Dual body', roles:['body','body2','bridge','accent'], ratios:[35,35,20,10] }
+      ];
+    }
+    if (count === 5) {
+      return [
+        { key:'authorial_signature', label:'Authorial signature', roles:['body','support','bridge','accent','rounder'], ratios:[35,20,15,15,15] },
+        { key:'commercial_safe', label:'Commercial safe', roles:['body','support','support2','accent','bridge'], ratios:[40,20,15,15,10] },
+        { key:'contrast_built', label:'Contrast built', roles:['body','support','bridge','contrast','accent'], ratios:[35,20,15,15,15] }
+      ];
+    }
+    return [
+      { key:'body_forward', label:'Body forward', roles:['body','support','accent'], ratios:[60,25,15] },
+      { key:'balanced', label:'Balanced', roles:['body','support','accent'], ratios:[50,30,20] },
+      { key:'dual_body', label:'Dual body', roles:['body','body2','accent'], ratios:[40,40,20] },
+      { key:'accent_forward', label:'Accent forward', roles:['body','support','accent'], ratios:[50,25,25] },
+      { key:'bridge_softened', label:'Bridge softened', roles:['body','bridge','accent'], ratios:[50,30,20] },
+      { key:'fresh_lifted', label:'Fresh lifted', roles:['body','support','accent'], ratios:[55,25,20] },
+      { key:'dessert_rounded', label:'Dessert rounded', roles:['body','rounder','accent'], ratios:[50,30,20] },
+      { key:'contrast_built', label:'Contrast built', roles:['body','support','contrast'], ratios:[55,20,25] },
+      { key:'commercial_safe', label:'Commercial safe', roles:['body','support','accent'], ratios:[70,20,10] }
+    ];
+  };
+
+  app.patchFlavorForMethodology = function(flavor) {
+    const f = this.hydrateFlavor({ ...flavor });
+    const a = JSON.parse(JSON.stringify(f.analysis || {}));
+    a.roleSuit = a.roleSuit || {};
+    a.traits = a.traits || {};
+    const text = this.normalizeText((f.brand || '') + ' ' + (f.name || '') + ' ' + (f.description || '') + ' ' + (f.type || ''));
+    const has = (s) => text.includes(s);
+    const raise = (obj, key, val) => { obj[key] = Math.max(Number(obj[key] || 0), val); };
+    const setCat = (cat) => { a.category = cat; };
+
+    // stronger defaults
+    raise(a, 'loudness', 3);
+    raise(a, 'suppressionRisk', 2);
+    raise(a, 'backgroundability', 4);
+    raise(a, 'density', 4);
+    raise(a, 'versatility', 4);
+    raise(a, 'conflictRisk', 2);
+    raise(a, 'brightness', 4);
+
+    if (has('berry pop') || has('wildberry') || has('вайлдбер') || has('вишн') || has('berry') || has('ягод')) {
+      setCat('berry');
+      raise(a.traits, 'berry', 8);
+      raise(a.traits, 'brightness', 7);
+      raise(a.traits, 'sweetness', 5);
+      raise(a, 'loudness', 6);
+      raise(a, 'suppressionRisk', 4);
+      raise(a.roleSuit, 'accent', 8);
+      raise(a.roleSuit, 'body', 7);
+    }
+    if (has('kiwi') || has('киви')) {
+      setCat('citrus');
+      raise(a.traits, 'acidity', 8);
+      raise(a.traits, 'brightness', 8);
+      raise(a.traits, 'freshness', 5);
+      raise(a, 'loudness', 7);
+      raise(a, 'suppressionRisk', 5);
+      raise(a.roleSuit, 'support', 8);
+      raise(a.roleSuit, 'accent', 8);
+      raise(a.roleSuit, 'acidic_correction', 8);
+    }
+    if (has('cactus') || has('кактус') || has('lulo') || has('луло')) {
+      setCat('tropical');
+      raise(a.traits, 'acidity', 7);
+      raise(a.traits, 'freshness', 6);
+      raise(a.traits, 'brightness', 7);
+      raise(a, 'loudness', 7);
+      raise(a, 'suppressionRisk', 5);
+      raise(a.roleSuit, 'support', 7);
+      raise(a.roleSuit, 'accent', 7);
+      raise(a.roleSuit, 'contrast', 7);
+    }
+    if (has('feijoa') || has('фейхоа') || has('goa feijoa') || has('goa')) {
+      setCat('tropical');
+      raise(a.traits, 'green', 6);
+      raise(a.traits, 'freshness', 6);
+      raise(a.traits, 'acidity', 5);
+      raise(a, 'loudness', 5);
+      raise(a.roleSuit, 'support', 7);
+      raise(a.roleSuit, 'bridge', 6);
+    }
+    if (has('банан') || has('banana') || has('кокос') || has('coconut') || has('карамел') || has('caramel') || has('vanilla') || has('ванил')) {
+      setCat('dessert');
+      raise(a.traits, 'creaminess', 7);
+      raise(a.traits, 'sweetness', 7);
+      raise(a, 'density', 7);
+      raise(a, 'loudness', 5);
+      raise(a, 'backgroundability', 6);
+      raise(a.roleSuit, 'body', 7);
+      raise(a.roleSuit, 'rounder', 9);
+      raise(a.roleSuit, 'bridge', 7);
+    }
+    if (has('bliss') || has('guajava') || has('guava') || has('марула') || has('marula') || has('melon') || has('дын')) {
+      setCat('fruit');
+      raise(a.traits, 'sweetness', 6);
+      raise(a.traits, 'brightness', 6);
+      raise(a, 'loudness', 5);
+      raise(a.roleSuit, 'body', 7);
+      raise(a.roleSuit, 'support', 7);
+    }
+    if (has('cola') || has('кола')) {
+      setCat('beverage');
+      raise(a.traits, 'depth', 7);
+      raise(a.traits, 'sweetness', 5);
+      raise(a, 'density', 6);
+      raise(a, 'loudness', 6);
+      raise(a.roleSuit, 'body', 8);
+      raise(a.roleSuit, 'deepener', 8);
+    }
+    if (has('tea') || has('чай') || has('baikal') || has('байкаль')) {
+      setCat('tea');
+      raise(a.traits, 'dryness', 6);
+      raise(a.traits, 'depth', 6);
+      raise(a.traits, 'freshness', 4);
+      raise(a, 'backgroundability', 7);
+      raise(a, 'loudness', 4);
+      raise(a.roleSuit, 'bridge', 8);
+      raise(a.roleSuit, 'support', 7);
+      raise(a.roleSuit, 'deepener', 6);
+    }
+    if (has('mint') || has('мята') || has('ice') || has('supernova') || has('arctic')) {
+      setCat('cooling');
+      raise(a.traits, 'cooling', 9);
+      raise(a.traits, 'freshness', 8);
+      raise(a, 'loudness', 6);
+      raise(a.roleSuit, 'cooler', 10);
+      raise(a.roleSuit, 'refresher', 8);
+    }
+    if (has('fruittella') || has('sorbet') || has('сорбет')) {
+      setCat('candy');
+      raise(a.traits, 'candy', 8);
+      raise(a.traits, 'sweetness', 6);
+      raise(a.traits, 'brightness', 7);
+      raise(a, 'loudness', 6);
+      raise(a.roleSuit, 'accent', 8);
+    }
+
+    a.backgroundability = Math.max(Number(a.backgroundability || 0), 10 - Number(a.loudness || 5));
+    a.persistence = Math.max(Number(a.persistence || 0), Math.round((Number(a.density || 4) + Number(a.loudness || 4)) / 2));
+    f.analysis = a;
+    return f;
+  };
+
+  app.scoreMethodologyFlavorForRole = function(flavor, role, style, bodyFlavor) {
+    const a = flavor.analysis || {};
+    const t = (this.styleTargets && this.styleTargets[style]) || (this.styleTargets && this.styleTargets.universal) || { freshness:5,sweetness:5,acidity:5,creaminess:4,depth:4,brightness:5 };
+    let score = 0;
+    const loud = Number(a.loudness || 4);
+    const suppression = Number(a.suppressionRisk || 3);
+    const density = Number(a.density || 4);
+    const background = Number(a.backgroundability || 4);
+    const versatility = Number(a.versatility || 4);
+    const tr = a.traits || {};
+    if (role === 'body' || role === 'body2') {
+      score += (Number(a.roleSuit?.body || 0) * 3.4) + density + versatility;
+      score += (10 - suppression) * 0.8;
+      score -= Number(tr.cooling || 0) * 1.2;
+    } else if (role === 'support' || role === 'support2') {
+      score += (Number(a.roleSuit?.support || 0) * 3.0) + background + versatility;
+    } else if (role === 'bridge') {
+      score += (Number(a.roleSuit?.bridge || a.roleSuit?.support || 0) * 3.0) + background + Number(tr.creaminess || 0) * 0.6 + Number(tr.dryness || 0) * 0.5;
+    } else if (role === 'rounder') {
+      score += (Number(a.roleSuit?.rounder || 0) * 3.2) + Number(tr.creaminess || 0) + density;
+      score -= Number(tr.cooling || 0);
+    } else if (role === 'accent') {
+      score += (Number(a.roleSuit?.accent || 0) * 3.0) + loud + Number(tr.brightness || 0);
+    } else if (role === 'contrast') {
+      score += (Number(a.roleSuit?.accent || 0) * 2.0) + Math.abs((Number(tr.acidity || 0)) - t.acidity) + Math.abs((Number(tr.freshness || 0)) - t.freshness);
+    }
+    if (bodyFlavor && bodyFlavor.id !== flavor.id) {
+      const pair = this.scorePair(bodyFlavor, flavor);
+      score += (pair.score * 1.7) - (pair.conflict * 2.5) + (pair.shared * ((role === 'support' || role === 'bridge' || role === 'rounder') ? 2.5 : 0.8));
+      if (role === 'contrast') score += Math.max(0, 3 - pair.shared) * 1.5;
+    }
+    return score;
+  };
+
+  app.buildMethodologyCoolingFlavor = function(level, style) {
+    if (level === 'none') return null;
+    const presets = {
+      light: { brand:'Auto Cooling', name:'Ice Mint', mint:2, cool:3 },
+      medium: { brand:'Auto Cooling', name:'Supernova', mint:3, cool:5 },
+      strong: { brand:'Auto Cooling', name:'Arctic Mix', mint:4, cool:8 }
+    };
+    const p = presets[level] || presets.light;
+    const f = this.patchFlavorForMethodology({
+      id: 'auto-cool-' + level + '-' + Math.random().toString(36).slice(2,8),
+      brand: p.brand,
+      name: p.name,
+      description: 'Системный охладитель',
+      strength:'', type:'Охлаждение', weight:''
+    });
+    f.analysis.category = 'cooling';
+    f.analysis.traits.cooling = p.cool;
+    f.analysis.traits.freshness = Math.max(f.analysis.traits.freshness || 0, p.mint + 2);
+    f.analysis.loudness = level === 'strong' ? 6 : 4;
+    f.analysis.suppressionRisk = level === 'strong' ? 5 : 3;
+    f.analysis.roleSuit.cooler = 10;
+    f.analysis.roleSuit.refresher = 8;
+    return f;
+  };
+
+  app.buildMethodologyVariant = function(combo, style, coolingLevel, concept, history) {
+    const flavors = combo.map(f => this.patchFlavorForMethodology(f));
+    const h = history || { flavorUsage:{}, bodyUsage:{}, comboUsage:{}, conceptUsage:{} };
+    const body = [...flavors].sort((a,b) => {
+      const sb = this.scoreMethodologyFlavorForRole(b,'body',style,null) - ((h.bodyUsage[(b.brand||'')+'|'+(b.name||'')] || 0) * 24);
+      const sa = this.scoreMethodologyFlavorForRole(a,'body',style,null) - ((h.bodyUsage[(a.brand||'')+'|'+(a.name||'')] || 0) * 24);
+      return sb - sa;
+    })[0];
+    if (!body) return null;
+    const picked = [body];
+    const assigned = [{ flavor: body, role: 'body' }];
+    const remaining = () => flavors.filter(f => !picked.some(p => String(p.id) === String(f.id)));
+    for (const role of concept.roles.slice(1)) {
+      let best = null;
+      let bestScore = -1e9;
+      for (const flavor of remaining()) {
+        const key = (flavor.brand||'')+'|'+(flavor.name||'');
+        let score = this.scoreMethodologyFlavorForRole(flavor, role, style, body);
+        score += Math.max(0, 5 - (h.flavorUsage[key] || 0)) * 5;
+        if (concept.key === 'fresh_lifted' && (flavor.analysis.traits.freshness || 0) >= 5) score += 8;
+        if (concept.key === 'dessert_rounded' && (flavor.analysis.traits.creaminess || 0) >= 5) score += 8;
+        if (concept.key === 'contrast_built') score += Math.abs((flavor.analysis.traits.acidity || 0) - (body.analysis.traits.sweetness || 0));
+        if (score > bestScore) { bestScore = score; best = flavor; }
+      }
+      if (best) {
+        picked.push(best);
+        assigned.push({ flavor: best, role: role === 'body2' ? 'support' : role === 'support2' ? 'support' : role });
+      }
+    }
+    if (assigned.length !== combo.length) return null;
+
+    const coolingBudget = this.getCoolingBudgetByLevel(coolingLevel);
+    const mainBudget = 100 - coolingBudget;
+    const items = [];
+    let allocated = 0;
+    assigned.forEach((entry, idx) => {
+      const basePct = Number(concept.ratios[idx] || 0);
+      const pct = idx === assigned.length - 1 ? (mainBudget - allocated) : Math.max(1, Math.round((basePct / 100) * mainBudget));
+      allocated += pct;
+      items.push({ ...entry.flavor, role: entry.role, percent: pct });
+    });
+    if (items.length && allocated !== mainBudget) items[items.length - 1].percent += (mainBudget - allocated);
+
+    if (coolingBudget > 0) {
+      const coolFlavor = this.buildMethodologyCoolingFlavor(coolingLevel, style);
+      items.push({ ...coolFlavor, role:'cooler', percent: coolingBudget });
+    }
+
+    const evaluated = this.evaluateMix(items, style, concept.key);
+    evaluated.mixConcept = concept.label;
+    evaluated.styleVariant = concept.label;
+    evaluated.title = this.buildMixName(items, style, concept.key);
+    evaluated.whyWorks = `Концепция ${concept.label}: ${body.name} держит тело, остальные слои распределены по роли и усилены под стиль ${this.labelToRu(style)}.`;
+    evaluated.actions = evaluated.actions || [];
+    if (coolingBudget > 0) evaluated.actions.unshift(`Холод встроен в общую смесь: ${coolingBudget}% ${items[items.length-1].name}.`);
+    evaluated.architecture = evaluated.architecture || {};
+    evaluated.architecture.coolers = items.filter(i => i.role === 'cooler').map(i => `${i.name} ${i.percent}%`);
+    evaluated._historyBodyKey = (body.brand||'')+'|'+(body.name||'');
+    evaluated._historyComboKey = assigned.map(x => (x.flavor.brand||'')+'|'+(x.flavor.name||'')).sort().join('::') + '|' + concept.key + '|' + coolingLevel;
+    evaluated._historyFlavorKeys = assigned.map(x => (x.flavor.brand||'')+'|'+(x.flavor.name||''));
+    evaluated._historyConceptKey = concept.key;
+
+    const coverageBonus = assigned.reduce((s, entry) => s + Math.max(0, 4 - (h.flavorUsage[(entry.flavor.brand||'')+'|'+(entry.flavor.name||'')] || 0)) * 4, 0);
+    const bodyPenalty = (h.bodyUsage[evaluated._historyBodyKey] || 0) * 20;
+    const comboPenalty = (h.comboUsage[evaluated._historyComboKey] || 0) * 35;
+    const conceptPenalty = (h.conceptUsage[evaluated._historyConceptKey] || 0) * 10;
+    evaluated.compatibilityScore = this.clampInt((evaluated.compatibilityScore || 0) + coverageBonus - bodyPenalty - comboPenalty - conceptPenalty, 0, 100);
+    return evaluated;
+  };
+
+  app.rotateManualVariants = function(variants, selected, targetCount, style, coolingLevel, resultCount) {
+    if (!variants.length) return [];
+    const signature = this.buildGenerationSignature(selected, targetCount, style, coolingLevel);
+    const history = this.state.generationHistory[signature] || { cursor:0, flavorUsage:{}, bodyUsage:{}, comboUsage:{}, conceptUsage:{} };
+    const sorted = [...variants].sort((a,b) => b.compatibilityScore - a.compatibilityScore);
+    const out = [];
+    const usedBodies = new Set();
+    const usedConcepts = new Set();
+    for (const v of sorted) {
+      const sameBody = usedBodies.has(v._historyBodyKey);
+      const sameConcept = usedConcepts.has(v._historyConceptKey);
+      if (out.length < resultCount && (!sameBody || !sameConcept || out.length === 0)) {
+        out.push(v);
+        usedBodies.add(v._historyBodyKey);
+        usedConcepts.add(v._historyConceptKey);
+      }
+    }
+    while (out.length < Math.min(resultCount, sorted.length)) {
+      const next = sorted[out.length];
+      if (!next) break;
+      out.push(next);
+    }
+    out.forEach(v => {
+      history.comboUsage[v._historyComboKey] = (history.comboUsage[v._historyComboKey] || 0) + 1;
+      history.bodyUsage[v._historyBodyKey] = (history.bodyUsage[v._historyBodyKey] || 0) + 1;
+      history.conceptUsage[v._historyConceptKey] = (history.conceptUsage[v._historyConceptKey] || 0) + 1;
+      (v._historyFlavorKeys || []).forEach(k => history.flavorUsage[k] = (history.flavorUsage[k] || 0) + 1);
+    });
+    this.state.generationHistory[signature] = history;
+    if (this.saveData) this.saveData();
+    return out;
+  };
+
+  app.buildManualResults = function(selected, style, coolingLevel, fixedComposition, forceAlternatives, targetCount, resultCount) {
+    const pool = (selected || []).map(f => this.patchFlavorForMethodology(f));
+    const desiredCount = this.clampInt(targetCount || pool.length, 2, Math.min(5, pool.length));
+    const signature = this.buildGenerationSignature(pool, desiredCount, style, coolingLevel);
+    const history = this.state.generationHistory[signature] || { cursor:0, flavorUsage:{}, bodyUsage:{}, comboUsage:{}, conceptUsage:{} };
+    const combos = this.getCombinations(pool, desiredCount);
+    const concepts = this.getMethodologyConceptSpecs(desiredCount);
+    const candidates = [];
+    combos.forEach(combo => {
+      concepts.forEach(concept => {
+        const v = this.buildMethodologyVariant(combo, style, coolingLevel, concept, history);
+        if (v) candidates.push(v);
+      });
+    });
+    const unique = [];
+    const seen = new Set();
+    candidates.sort((a,b) => b.compatibilityScore - a.compatibilityScore).forEach(v => {
+      const key = v.items.map(i => `${i.brand}|${i.name}|${i.role}|${i.percent}`).join('||') + '|' + v._historyConceptKey;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(v);
+      }
+    });
+    const count = Math.max(1, resultCount || 3);
+    return this.rotateManualVariants(unique, pool, desiredCount, style, coolingLevel, count);
+  };
+
+  app.buildPackingVisualization = function(items, style) {
+    const packing = this.getPackingStyle();
+    const colors = ['#ef4444','#f59e0b','#84cc16','#22c55e','#06b6d4','#a855f7'];
+    const esc = (s) => this.escapeHtml(String(s || ''));
+    if (packing === 'layers') {
+      return `<div class="packing-visual packing-layers">${items.map((item, idx) => `<div class="packing-layer-row"><div class="packing-layer-fill" style="height:${Math.max(16, item.percent * 1.3)}px;background:${colors[idx % colors.length]}"></div><div class="packing-layer-label">${esc(item.name)} <strong>${item.percent}%</strong></div></div>`).join('')}</div>`;
+    }
+    let current = 0;
+    const total = items.reduce((s, i) => s + Number(i.percent || 0), 0) || 100;
+    const gradients = items.map((item, idx) => {
+      const start = (current / total) * 100;
+      current += Number(item.percent || 0);
+      const end = (current / total) * 100;
+      return `${colors[idx % colors.length]} ${start}% ${end}%`;
+    }).join(', ');
+    return `<div class="packing-visual packing-sectors"><div class="packing-wheel" style="background:conic-gradient(${gradients})"></div><div class="packing-sector-list">${items.map((item, idx) => `<div class="packing-sector-item"><span class="packing-dot" style="background:${colors[idx % colors.length]}"></span>${esc(item.name)} <strong>${item.percent}%</strong></div>`).join('')}</div></div>`;
+  };
+
+  app.renderResults = function(results, meta) {
+    const container = document.getElementById('results-area');
+    if (!container) return;
+    const packingStyle = this.getPackingStyle();
+    const summary = `
+      <div class="card" style="margin-bottom:14px">
+        <div class="results-toolbar">
+          <div>
+            <strong>Результаты</strong>
+            <div class="footer-note" style="margin-top:6px">Стиль: ${this.escapeHtml(meta.style)} • Режим: ${meta.mode === 'manual' ? 'ручной анализ' : 'авто'} • Холод: ${this.escapeHtml(meta.coolingLevel)} • Забивка: ${packingStyle === 'layers' ? 'слоями' : 'секторами'}</div>
+          </div>
+          <span class="badge badge-info">${results.length} результат(а)</span>
+        </div>
+        <div class="notice">Шкала совместимости: 100% — почти эталон, 0% — практически несовместимо. Шаг оценки — 1%.</div>
+      </div>`;
+    container.innerHTML = summary + results.map((res, idx) => this.renderResultCard(res, idx)).join('');
+  };
+
+  app.renderResultCard = function(res, idx) {
+    const colorClass = this.scoreClass(res.compatibilityScore || 0);
+    const segColors = ['#6366f1','#ec4899','#10b981','#f59e0b','#0ea5e9','#8b5cf6','#ef4444','#14b8a6'];
+    const riskHtml = (res.risks || []).map(r => `<div class="risk-item risk-${r.level}">${this.escapeHtml(r.text)}</div>`).join('');
+    const actionHtml = (res.actions || []).map(a => `<div class="action-item">${this.escapeHtml(a)}</div>`).join('');
+    const packingVisual = this.buildPackingVisualization(res.items || [], this.getPackingStyle());
+    return `
+    <div class="card mix-card">
+      <div class="mix-topline">
+        <div style="flex:1">
+          <div class="flex flex-wrap" style="margin-bottom:8px">
+            <span class="badge ${(res.compatibilityScore||0)>=90 ? 'badge-success' : (res.compatibilityScore||0)>=80 ? 'badge-info' : (res.compatibilityScore||0)>=70 ? 'badge-warning' : 'badge-danger'}">${this.labelToRu(res.compatibilityLabel)}</span>
+            <span class="badge badge-neutral">${this.escapeHtml(res.styleVariant || 'Вариант')}</span>
+            <span class="badge badge-info">${this.escapeHtml(res.mixConcept || 'Концепт')}</span>
+            <span class="badge badge-primary">Тело: ${this.escapeHtml(res.bodyName)}</span>
+          </div>
+          <div class="mix-title">${this.escapeHtml(res.title)}</div>
+          <p class="text-sm" style="margin-top:6px">${this.escapeHtml(res.overallVerdict)}</p>
+        </div>
+        <div class="score-circle ${colorClass}">${res.compatibilityScore}%</div>
+      </div>
+      <div class="flavor-bar">${(res.items||[]).map((item, i) => `<div class="flavor-segment" style="width:${item.percent}%;background:${segColors[i%segColors.length]}" title="${this.escapeHtml(item.name)} ${item.percent}%"></div>`).join('')}</div>
+      <div class="grid grid-2">
+        <div class="card" style="padding:14px;margin:0">
+          <div class="section-title">Состав и роли</div>
+          <div class="flavor-role-list">${(res.items||[]).map(item => `<div class="flavor-role-card"><strong>${item.percent}% — ${this.escapeHtml(item.brand)} ${this.escapeHtml(item.name)}</strong><div class="small-tags"><span class="tag">${this.roleLabels[item.role] || item.role}</span><span class="tag">${this.labelCategory(item.analysis.category)}</span><span class="tag">Громкость ${item.analysis.loudness}/10</span><span class="tag">Подавление ${item.analysis.suppressionRisk}/10</span></div></div>`).join('')}</div>
+        </div>
+        <div class="card" style="padding:14px;margin:0">
+          <div class="section-title">Визуал забивки</div>
+          ${packingVisual}
+        </div>
+      </div>
+      <div class="grid grid-2" style="margin-top:14px">
+        <div class="card" style="padding:14px;margin:0">
+          <div class="section-title">Архитектура микса</div>
+          <div class="kv">
+            <div class="kv-row"><div>Тело микса</div><div><strong>${this.escapeHtml(res.architecture?.suggestedBody || res.bodyName)}</strong></div></div>
+            <div class="kv-row"><div>Поддержка</div><div>${this.escapeHtml((res.architecture?.mainSupport || []).join(', ') || 'нет выраженной поддержки')}</div></div>
+            <div class="kv-row"><div>Акцент</div><div>${this.escapeHtml((res.architecture?.accents || []).join(', ') || 'нет яркого акцента')}</div></div>
+            <div class="kv-row"><div>Округлитель</div><div>${this.escapeHtml((res.architecture?.rounders || []).join(', ') || 'не нужен / отсутствует')}</div></div>
+            <div class="kv-row"><div>Охладитель</div><div>${this.escapeHtml((res.architecture?.coolers || []).join(', ') || 'нет')}</div></div>
+            <div class="kv-row"><div>Профиль</div><div>${this.escapeHtml(res.profileText || '')}</div></div>
+          </div>
+        </div>
+        <div class="card" style="padding:14px;margin:0">
+          <div class="section-title">Почему микс работает</div>
+          <p class="text-sm">${this.escapeHtml(res.whyWorks || '')}</p>
+          <div class="notice" style="margin-top:10px">${this.escapeHtml(res.conceptComment || '')}</div>
+        </div>
+      </div>
+      <div class="grid grid-2" style="margin-top:14px">
+        <div class="card" style="padding:14px;margin:0"><div class="section-title">Основные риски</div><div class="risk-list">${riskHtml}</div></div>
+        <div class="card" style="padding:14px;margin:0"><div class="section-title">Что исправить / рекомендации</div><div class="action-list">${actionHtml}</div></div>
+      </div>
+    </div>`;
+  };
+
+  const oldInit = app.init.bind(app);
+  app.init = function() {
+    oldInit();
+    this.ensurePackingStyleControl();
+  };
+})();

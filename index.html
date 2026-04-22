@@ -10,15 +10,15 @@
 <meta name="apple-mobile-web-app-title" content="Кальянная миксология" />
 <meta name="application-name" content="Кальянная миксология" />
 <meta name="mobile-web-app-capable" content="yes" />
-<link rel="manifest" href="./manifest.webmanifest?v=16.2" />
-<link rel="apple-touch-icon" sizes="120x120" href="./icons/icon-120-v16.2.png" />
-<link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152-v16.2.png" />
-<link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167-v16.2.png" />
-<link rel="apple-touch-icon" href="./icons/icon-180-v16.2.png" />
-<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180-v16.2.png" />
-<link rel="apple-touch-icon-precomposed" href="./icons/icon-180-v16.2.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192-v16.2.png" />
-<link rel="shortcut icon" href="./icons/icon-192-v16.2.png" />
+<link rel="manifest" href="./manifest.webmanifest?v=13" />
+<link rel="apple-touch-icon" sizes="120x120" href="./icons/icon-120-v5.png" />
+<link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152-v5.png" />
+<link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167-v5.png" />
+<link rel="apple-touch-icon" href="./icons/icon-180-v5.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180-v5.png" />
+<link rel="apple-touch-icon-precomposed" href="./icons/icon-180-v5.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192-v5.png" />
+<link rel="shortcut icon" href="./icons/icon-192-v5.png" />
 <style>
 :root{
   --primary:#6366f1;--primary-dark:#4f46e5;--secondary:#ec4899;--bg:#f8fafc;--surface:#ffffff;
@@ -159,6 +159,18 @@ pre.json-preview{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-ra
 .photo-empty{padding:18px;border:1px dashed var(--border);border-radius:14px;background:#f8fafc;color:var(--text-light)}
 .text-right{text-align:right}
 
+.packing-visual{display:grid;gap:12px;align-items:center}
+.packing-sectors{grid-template-columns:minmax(180px,220px) 1fr}
+.packing-wheel{width:200px;height:200px;border-radius:50%;border:8px solid rgba(255,255,255,.08);box-shadow:inset 0 0 0 8px rgba(7,11,22,.55),0 10px 30px rgba(0,0,0,.35);margin:0 auto;position:relative}
+.packing-wheel::after{content:"";position:absolute;inset:38%;border-radius:50%;background:#0b1020;border:6px solid rgba(255,255,255,.12)}
+.packing-sector-list{display:grid;gap:8px}
+.packing-sector-item,.packing-layer-label{display:flex;align-items:center;gap:8px;font-size:.86rem;padding:8px 10px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.03)}
+.packing-dot{width:12px;height:12px;border-radius:999px;display:inline-block;flex:0 0 12px}
+.packing-layers{gap:10px}
+.packing-layer-row{display:grid;gap:8px}
+.packing-layer-fill{width:100%;border-radius:14px 14px 6px 6px;min-height:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+@media (max-width:720px){.packing-sectors{grid-template-columns:1fr}.packing-wheel{width:180px;height:180px}}
+
 @media (max-width:900px){.grid-3,.grid-2,.stats-grid,.score-breakdown{grid-template-columns:1fr}}
 @media (max-width:720px){
   .container{padding:12px 12px calc(14px + env(safe-area-inset-bottom))}
@@ -206,7 +218,7 @@ input,select,textarea{background:rgba(11,16,31,.82);border:1px solid rgba(126,15
 <div class="container app-shell">
 
   <div class="premium-banner no-print">
-    <img src="assets/banner-v16.2.png" alt="Hookah Mixology Engine Pro">
+    <img src="assets/banner-v13.png" alt="Hookah Mixology Engine Pro">
   </div>
 
   <nav class="nav no-print">
@@ -287,6 +299,13 @@ input,select,textarea{background:rgba(11,16,31,.82);border:1px solid rgba(126,15
           <select id="fixed-composition">
             <option value="yes" selected>Да</option>
             <option value="no">Нет, можно убирать лишнее</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Вид забивки</label>
+          <select id="packing-style">
+            <option value="sectors" selected>Секторами</option>
+            <option value="layers">Слоями</option>
           </select>
         </div>
       </div>
@@ -3481,7 +3500,7 @@ if (document.readyState === 'loading') {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw.js?v=16.2', { scope: './' }).catch(function (err) {
+    navigator.serviceWorker.register('./sw.js?v=13', { scope: './' }).catch(function (err) {
       console.warn('Service worker registration failed:', err);
     });
   });
