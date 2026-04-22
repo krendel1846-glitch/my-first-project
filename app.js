@@ -221,46 +221,11 @@ const app = {
   },
 
   inferCategory(flavor) {
-    const typeText = this.normalizeText(flavor.type || '');
-    const joined = this.normalizeText([flavor.brand, flavor.name, flavor.description, flavor.type].join(' '));
-
-    const explicitTypeMap = [
-      ['охлаж', 'cooling'], ['свеж', 'cooling'], ['ice', 'cooling'], ['mint', 'cooling'],
-      ['десерт', 'dessert'], ['сливоч', 'creamy'], ['йогурт', 'creamy'],
-      ['чай', 'tea'], ['напит', 'beverage'], ['кола', 'beverage'], ['лимонад', 'beverage'],
-      ['цветоч', 'floral'], ['прян', 'spicy'], ['цитрус', 'citrus'], ['ягод', 'berry'],
-      ['троп', 'tropical'], ['фрукт', 'fruit'], ['древ', 'woody'], ['табач', 'woody']
-    ];
-    for (const [needle, cat] of explicitTypeMap) {
-      if (typeText.includes(needle)) return cat;
-    }
-
-    const priority = ['cooling','dessert','creamy','beverage','tea','floral','spicy','citrus','berry','tropical','woody','fruit'];
-    const scores = {};
-    priority.forEach(cat => { scores[cat] = 0; });
+    const text = this.normalizeText([flavor.brand, flavor.name, flavor.description, flavor.type].join(' '));
     for (const [cat, keys] of Object.entries(this.categoryKeywords)) {
-      keys.forEach(k => {
-        if (joined.includes(k)) scores[cat] = (scores[cat] || 0) + (k.length > 4 ? 3 : 2);
-      });
+      if (keys.some(k => text.includes(k))) return cat;
     }
-
-    // Compound dessert / beverage heuristics
-    if (/(banana|банан)/.test(joined) && /(caramel|карамел|coconut|кокос|cream|слив|dessert|десерт)/.test(joined)) scores.dessert += 6;
-    if (/(yogurt|йогурт|cheesecake|чизкейк|pie|пирог|cookie|печень|cake|торт)/.test(joined)) scores.dessert += 7;
-    if (/(cola|кола|soda|лимонад|tonic|тоник|tea|чай|drink|напит)/.test(joined)) scores.beverage += 5;
-    if (/(kiwi|киви|lime|лайм|lemon|лимон|grapefruit|грейп)/.test(joined)) scores.citrus += 3;
-    if (/(strawberry|клубник|cherry|вишн|sorbet|сорбет|fruittella|fruittella)/.test(joined)) scores.berry += 3;
-
-    let best = 'fruit';
-    let bestScore = -1;
-    priority.forEach(cat => {
-      const sc = scores[cat] || 0;
-      if (sc > bestScore) {
-        best = cat;
-        bestScore = sc;
-      }
-    });
-    return bestScore > 0 ? best : 'fruit';
+    return 'fruit';
   },
 
   inferStrengthValue(strength) {
@@ -282,104 +247,73 @@ const app = {
         if (text.includes(word)) traits[trait] += 2;
       });
     }
-
-    const category = this.inferCategory(flavor);
-    const categoryBoosts = {
-      fruit:{ juicy:2, brightness:1 },
-      berry:{ berry:3, brightness:2, sweetness:1 },
-      citrus:{ citrus:4, acidity:3, brightness:2, freshness:1 },
-      tropical:{ tropical:4, juicy:2, sweetness:2 },
-      dessert:{ creaminess:4, sweetness:2, depth:2, candy:1 },
-      creamy:{ creaminess:5, sweetness:2, depth:1 },
-      cooling:{ cooling:5, freshness:3, brightness:1 },
-      beverage:{ depth:2, brightness:2, dryness:1 },
-      tea:{ tea:4, dryness:3, depth:2 },
-      floral:{ floral:5, brightness:2 },
-      spicy:{ spicy:5, depth:3, dryness:1 },
-      woody:{ woody:5, depth:4, dryness:2 }
-    };
-    const boost = categoryBoosts[category] || {};
-    Object.keys(boost).forEach(k => traits[k] += boost[k]);
-
-    if (/(banana|банан)/.test(text)) { traits.tropical += 2; traits.sweetness += 1; }
-    if (/(caramel|карамел|coconut|кокос)/.test(text)) { traits.creaminess += 2; traits.depth += 1; }
-    if (/(sorbet|сорбет|fruittella|fruittella|candy|конфет)/.test(text)) { traits.candy += 2; traits.brightness += 1; }
-    if (/(melon|melon|дын|арбуз)/.test(text)) { traits.juicy += 2; traits.green += 1; }
-
     Object.keys(traits).forEach(k => traits[k] = Math.max(0, Math.min(10, traits[k])));
 
+    const category = this.inferCategory(flavor);
     const strengthValue = this.inferStrengthValue(flavor.strength);
     const sweetness = traits.sweetness;
     const acidity = traits.acidity;
     const tartness = Math.max(0, Math.min(10, Math.round(acidity * 0.8 + traits.citrus * 0.4)));
-    const density = Math.max(0, Math.min(10, Math.round((traits.depth * 0.38) + (traits.creaminess * 0.28) + (sweetness * 0.18) + (traits.dryness * 0.16))));
-    const dessertness = Math.max(0, Math.min(10, Math.round((traits.creaminess * 0.42) + (sweetness * 0.28) + (traits.candy * 0.18) + (traits.depth * 0.12))));
-    const naturalness = Math.max(0, Math.min(10, Math.round(7 - traits.candy * 0.50 - traits.floral * 0.10 + traits.green * 0.18 + traits.berry * 0.10 - (category === 'dessert' ? 1 : 0))));
-    const heaviness = Math.max(0, Math.min(10, Math.round((density * 0.42) + (dessertness * 0.28) + (traits.depth * 0.18) - (traits.freshness * 0.08) - (traits.citrus * 0.05))));
+    const density = Math.max(0, Math.min(10, Math.round((traits.depth * 0.45) + (traits.creaminess * 0.25) + (sweetness * 0.20) + (traits.dryness * 0.10))));
+    const dessertness = Math.max(0, Math.min(10, Math.round((traits.creaminess * 0.45) + (sweetness * 0.35) + (traits.candy * 0.20))));
+    const naturalness = Math.max(0, Math.min(10, Math.round(7 - traits.candy * 0.45 - traits.floral * 0.12 + traits.green * 0.12 + traits.berry * 0.08)));
+    const heaviness = Math.max(0, Math.min(10, Math.round((density * 0.45) + (dessertness * 0.30) + (traits.depth * 0.15) - (traits.freshness * 0.10))));
 
-    let loudness = Math.max(1, Math.min(10, Math.round(
+    const loudness = Math.max(1, Math.min(10, Math.round(
       0.24 * strengthValue +
-      0.20 * traits.brightness +
-      0.12 * traits.cooling +
-      0.10 * traits.floral +
-      0.10 * traits.spicy +
+      0.18 * traits.brightness +
+      0.16 * traits.cooling +
+      0.12 * traits.floral +
+      0.12 * traits.spicy +
       0.10 * traits.candy +
-      0.08 * traits.citrus +
-      0.06 * traits.berry
+      0.08 * traits.citrus
     )));
-    if (category === 'cooling') loudness += 2;
-    if (category === 'floral' || category === 'spicy') loudness += 1;
-    if (category === 'dessert' || category === 'creamy') loudness -= 1;
-    loudness = Math.max(1, Math.min(10, loudness));
 
-    let suppressionRisk = Math.max(1, Math.min(10, Math.round(
-      0.28 * loudness +
-      0.18 * traits.cooling +
-      0.15 * traits.floral +
+    const suppressionRisk = Math.max(1, Math.min(10, Math.round(
+      0.25 * loudness +
+      0.22 * traits.cooling +
+      0.16 * traits.floral +
       0.12 * traits.spicy +
       0.10 * traits.citrus +
-      0.09 * heaviness +
-      0.08 * traits.candy
+      0.08 * heaviness +
+      0.07 * traits.candy
     )));
-    if (category === 'cooling' || category === 'floral') suppressionRisk += 1;
-    suppressionRisk = Math.max(1, Math.min(10, suppressionRisk));
 
     const bodySuit = Math.max(0, Math.min(10, Math.round(
-      0.22 * sweetness +
+      0.24 * sweetness +
       0.18 * traits.juicy +
-      0.18 * density +
+      0.16 * density +
       0.12 * traits.depth +
-      0.12 * (10 - traits.cooling) +
+      0.10 * (10 - traits.cooling) +
       0.10 * (10 - traits.floral) +
-      0.08 * (10 - traits.spicy)
+      0.10 * (10 - traits.spicy)
     )));
 
     const supportSuit = Math.max(0, Math.min(10, Math.round(
-      0.18 * traits.brightness +
+      0.20 * traits.brightness +
       0.18 * traits.juicy +
       0.14 * traits.green +
       0.12 * acidity +
-      0.10 * traits.depth +
+      0.12 * traits.depth +
       0.12 * sweetness +
-      0.08 * (10 - suppressionRisk) +
-      0.08 * (10 - traits.cooling)
+      0.12 * (10 - traits.cooling)
     )));
 
     const accentSuit = Math.max(0, Math.min(10, Math.round(
-      0.20 * traits.citrus +
+      0.22 * traits.citrus +
       0.16 * traits.floral +
       0.16 * traits.spicy +
       0.14 * acidity +
-      0.12 * traits.brightness +
-      0.12 * loudness +
-      0.10 * traits.berry
+      0.14 * traits.brightness +
+      0.10 * loudness +
+      0.08 * traits.berry
     )));
 
     const rounderSuit = Math.max(0, Math.min(10, Math.round(
       0.34 * traits.creaminess +
-      0.18 * sweetness +
+      0.20 * sweetness +
       0.12 * density +
-      0.12 * traits.tropical +
+      0.10 * traits.tropical +
       0.12 * (10 - acidity) +
       0.12 * (10 - traits.cooling)
     )));
@@ -390,14 +324,14 @@ const app = {
       0.14 * traits.brightness
     )));
 
-    const versatility = Math.max(0, Math.min(10, Math.round((bodySuit + supportSuit + accentSuit + rounderSuit) / 4 - suppressionRisk * 0.12)));
-    const conflictRisk = Math.max(0, Math.min(10, Math.round((traits.floral * 0.23) + (traits.spicy * 0.18) + (traits.cooling * 0.18) + (traits.candy * 0.17) + (traits.citrus * 0.10) + (heaviness * 0.14))));
-    const heatResistance = Math.max(0, Math.min(10, Math.round(strengthValue * 0.40 + density * 0.34 + traits.depth * 0.26)));
-    const revealSpeed = Math.max(0, Math.min(10, Math.round(traits.brightness * 0.42 + traits.cooling * 0.18 + acidity * 0.22 + (10 - density) * 0.18)));
-    const persistence = Math.max(0, Math.min(10, Math.round(density * 0.34 + sweetness * 0.18 + traits.depth * 0.20 + heatResistance * 0.28)));
-    const fadeRisk = Math.max(0, Math.min(10, Math.round((10 - loudness) * 0.35 + (10 - persistence) * 0.35 + acidity * 0.10 + traits.brightness * 0.20)));
-    const dominance = Math.max(0, Math.min(10, Math.round((loudness * 0.42) + (suppressionRisk * 0.33) + (bodySuit * 0.25))));
-    const backgroundability = Math.max(0, Math.min(10, Math.round((supportSuit * 0.40) + (rounderSuit * 0.24) + (10 - dominance) * 0.22 + (10 - conflictRisk) * 0.14)));
+    const versatility = Math.max(0, Math.min(10, Math.round((bodySuit + supportSuit + accentSuit + rounderSuit) / 4 - suppressionRisk * 0.15)));
+    const conflictRisk = Math.max(0, Math.min(10, Math.round((traits.floral * 0.25) + (traits.spicy * 0.18) + (traits.cooling * 0.18) + (traits.candy * 0.16) + (traits.citrus * 0.10) + (heaviness * 0.13))));
+    const heatResistance = Math.max(0, Math.min(10, Math.round(strengthValue * 0.45 + density * 0.30 + traits.depth * 0.25)));
+    const revealSpeed = Math.max(0, Math.min(10, Math.round(traits.brightness * 0.45 + traits.cooling * 0.20 + acidity * 0.20 + (10 - density) * 0.15)));
+    const persistence = Math.max(0, Math.min(10, Math.round(density * 0.35 + sweetness * 0.20 + traits.depth * 0.20 + heatResistance * 0.25)));
+    const fadeRisk = Math.max(0, Math.min(10, Math.round((10 - loudness) * 0.35 + (10 - persistence) * 0.35 + acidity * 0.15 + traits.brightness * 0.15)));
+    const dominance = Math.max(0, Math.min(10, Math.round((loudness * 0.45) + (suppressionRisk * 0.35) + (bodySuit * 0.20))));
+    const backgroundability = Math.max(0, Math.min(10, Math.round((supportSuit * 0.45) + (rounderSuit * 0.25) + (10 - dominance) * 0.20 + (10 - conflictRisk) * 0.10)));
 
     return {
       category,
@@ -1584,42 +1518,25 @@ const app = {
   buildManualResults(selected, style, coolingLevel, fixedComposition, forceAlternatives = false, targetCount = null, resultCount = 3) {
     const desiredCount = Math.max(2, Math.min(targetCount || selected.length, selected.length));
     let workingFlavors = [...selected];
-    if (!fixedComposition && workingFlavors.length > Math.max(5, desiredCount)) {
-      workingFlavors = this.pruneWeakestFlavor(workingFlavors, style).slice(0, Math.max(5, desiredCount));
+    if (!fixedComposition && workingFlavors.length > Math.max(4, desiredCount)) {
+      workingFlavors = this.pruneWeakestFlavor(workingFlavors, style).slice(0, Math.max(4, desiredCount));
     }
 
-    const signature = this.buildGenerationSignature(selected, desiredCount, style, coolingLevel);
-    const history = this.state.generationHistory[signature] || { cursor: 0, recentBodies: [], recentCombos: [], flavorUsage: {}, conceptUsage: {} };
     const groups = this.buildManualFlavorGroups(workingFlavors, style, coolingLevel, desiredCount, fixedComposition);
-
     let variants = [];
     groups.forEach(group => {
-      const candidateVariants = this.generateCandidateVariants(group, style, coolingLevel, forceAlternatives ? 16 : 14, desiredCount);
+      const candidateVariants = this.generateCandidateVariants(group, style, coolingLevel, forceAlternatives ? 12 : 10, desiredCount);
       candidateVariants.forEach(variant => {
         variant.sourceSelectionSize = group.length;
         variant.selectedPoolSize = selected.length;
-        const body = variant.items.find(x => x.role === 'body');
-        const comboKey = variant.items.filter(x => x.role !== 'cooler').map(x => this.normalizeText(x.brand + ':' + x.name)).sort().join('|');
-        const conceptKey = this.normalizeText(variant.mixConcept || variant.ratioName || variant.styleVariant || 'base');
-        const usedPenalty = variant.items.reduce((sum, item) => sum + (history.flavorUsage[this.normalizeText(item.brand + ':' + item.name)] || 0), 0);
-        const bodyPenalty = body && history.recentBodies.slice(-2).includes(this.normalizeText(body.brand + ':' + body.name)) ? 12 : 0;
-        const comboPenalty = history.recentCombos.slice(-5).includes(comboKey) ? 16 : 0;
-        const conceptPenalty = (history.conceptUsage[conceptKey] || 0) * 2.5;
-        const coverageBonus = variant.items.reduce((sum, item) => {
-          const key = this.normalizeText(item.brand + ':' + item.name);
-          return sum + Math.max(0, 6 - (history.flavorUsage[key] || 0));
-        }, 0);
-        variant.dynamicScore = variant.compatibilityScore + coverageBonus - usedPenalty * 2.2 - bodyPenalty - comboPenalty - conceptPenalty;
-        variant.__comboKey = comboKey;
-        variant.__conceptKey = conceptKey;
+        variants.push(variant);
       });
-      variants.push(...candidateVariants);
     });
 
     const unique = [];
     const seen = new Set();
     variants
-      .sort((a,b) => (b.dynamicScore || b.compatibilityScore) - (a.dynamicScore || a.compatibilityScore))
+      .sort((a,b) => b.compatibilityScore - a.compatibilityScore)
       .forEach(variant => {
         const key = variant.items.map(x => x.brand + ':' + x.name + ':' + x.role + ':' + x.percent).sort().join('|') + '|' + (variant.mixConcept || variant.styleVariant || '');
         if (!seen.has(key)) {
@@ -1628,37 +1545,9 @@ const app = {
         }
       });
 
-    const diversified = [];
-    const localBodies = new Set();
-    const localCombos = new Set();
-    for (const variant of unique) {
-      const body = variant.items.find(x => x.role === 'body');
-      const bodyKey = body ? this.normalizeText(body.brand + ':' + body.name) : '';
-      if (localCombos.has(variant.__comboKey)) continue;
-      if (bodyKey && localBodies.has(bodyKey) && diversified.length < Math.max(resultCount, 3)) continue;
-      diversified.push(variant);
-      if (bodyKey) localBodies.add(bodyKey);
-      localCombos.add(variant.__comboKey);
-      if (diversified.length >= (forceAlternatives ? Math.max(8, resultCount * 2) : resultCount)) break;
-    }
-
-    const finalList = diversified.length ? diversified : unique.slice(0, resultCount);
-    if (!forceAlternatives) {
-      finalList.forEach(variant => {
-        const body = variant.items.find(x => x.role === 'body');
-        if (body) history.recentBodies.push(this.normalizeText(body.brand + ':' + body.name));
-        history.recentCombos.push(variant.__comboKey);
-        history.conceptUsage[variant.__conceptKey] = (history.conceptUsage[variant.__conceptKey] || 0) + 1;
-        variant.items.forEach(item => {
-          const key = this.normalizeText(item.brand + ':' + item.name);
-          history.flavorUsage[key] = (history.flavorUsage[key] || 0) + 1;
-        });
-      });
-      history.recentBodies = history.recentBodies.slice(-8);
-      history.recentCombos = history.recentCombos.slice(-12);
-      this.state.generationHistory[signature] = history;
-    }
-    return finalList.slice(0, resultCount);
+    const diversified = this.diversifyVariantSelection(unique, Math.max(resultCount * 4, forceAlternatives ? 10 : 8));
+    if (forceAlternatives) return diversified;
+    return this.rotateManualVariants(diversified, selected, desiredCount, style, coolingLevel, resultCount);
   },
 
   buildManualFlavorGroups(flavors, style, coolingLevel, targetCount, fixedComposition) {
@@ -1668,12 +1557,7 @@ const app = {
       group,
       score: this.scoreManualGroup(group, style, coolingLevel, fixedComposition)
     })).sort((a,b) => b.score - a.score);
-    const primary = scored.slice(0, 8).map(x => x.group);
-    const tail = scored.slice(8, 20).map(x => x.group);
-    const mixed = [];
-    primary.forEach(g => mixed.push(g));
-    tail.forEach((g, idx) => { if (idx % 2 === 0) mixed.push(g); });
-    return mixed.slice(0, 12);
+    return scored.slice(0, 12).map(x => x.group);
   },
 
   scoreManualGroup(group, style, coolingLevel, fixedComposition) {
@@ -2206,47 +2090,6 @@ buildConceptFamilies(roleMap, count, style, coolingLevel, conceptMode = 'base') 
     return cloned;
   },
 
-  getSystemCooler(coolingLevel, style) {
-    if (coolingLevel === 'none') return null;
-    const presets = {
-      light: { brand:'Auto Cooling', name:'Ice Mint', description:'Легкая мята для подсветки микса', strength:'Средняя', type:'Охлаждение', weight:'', percent:5 },
-      medium: { brand:'Auto Cooling', name:'Supernova', description:'Чистый кулер для заметного охлаждения', strength:'Средняя', type:'Охлаждение', weight:'', percent:8 },
-      strong: { brand:'Auto Cooling', name:'Arctic Mix', description:'Яркий кулер для сильного холода', strength:'Средняя', type:'Охлаждение', weight:'', percent:12 }
-    };
-    const chosen = presets[coolingLevel] || presets.medium;
-    const flavor = { ...chosen, id: 'auto-cooler-' + coolingLevel + '-' + style };
-    flavor.analysis = this.analyzeFlavor(flavor);
-    flavor.analysis.roleSuit.cooler = 10;
-    flavor.analysis.traits.cooling = 10;
-    flavor.analysis.traits.freshness = Math.max(flavor.analysis.traits.freshness, 8);
-    return flavor;
-  },
-
-  integrateCoolingLayer(items, coolingLevel, style) {
-    if (coolingLevel === 'none') return items;
-    const desired = coolingLevel === 'strong' ? 12 : coolingLevel === 'medium' ? 8 : 5;
-    let cooler = items.find(i => i.role === 'cooler');
-    if (!cooler) {
-      const auto = this.getSystemCooler(coolingLevel, style);
-      if (auto) {
-        cooler = { ...auto, role:'cooler', percent:desired };
-        items.push(cooler);
-      }
-    } else {
-      cooler.percent = desired;
-    }
-
-    const payload = items.filter(i => i.role !== 'cooler');
-    const totalPayload = payload.reduce((s,i)=>s+i.percent,0) || 100;
-    payload.forEach((item, idx) => {
-      const next = idx === payload.length - 1 ? (100 - desired) - payload.slice(0, -1).reduce((s,x)=>s+x.percent,0) : Math.max(1, Math.round(item.percent * ((100 - desired) / totalPayload)));
-      item.percent = next;
-    });
-    const sum = items.reduce((s,i)=>s+i.percent,0);
-    if (sum !== 100 && payload.length) payload[0].percent += 100 - sum;
-    return items;
-  },
-
   buildAlternativeFamily(roleMap, count, mode, coolingLevel) {
     const families = this.buildConceptFamilies(roleMap, count, 'balanced', coolingLevel);
     return families.find(f => f.mode === mode) || families[0] || { name:'base', roles:{body:60, support:25, accent:15}, mode:'base' };
@@ -2296,10 +2139,9 @@ buildVariant(flavors, roleMap, family, style, coolingLevel, variantMode='base') 
   });
 
   if (!items.length) return null;
-  let biasedItems = this.applyConceptBias(items, variantMode, style, coolingLevel);
-  biasedItems = this.integrateCoolingLayer(biasedItems, coolingLevel, style);
+  const biasedItems = this.applyConceptBias(items, variantMode, style, coolingLevel);
   const total = biasedItems.reduce((s,i)=>s+i.percent,0);
-  if (total !== 100 && biasedItems.length) biasedItems[0].percent += 100 - total;
+  if (total !== 100) biasedItems[0].percent += 100 - total;
 
   const evaluated = this.evaluateMix(biasedItems, style, variantMode);
   evaluated.mixConcept = family.name || evaluated.styleVariant || 'Вариант';
@@ -2311,7 +2153,7 @@ buildVariant(flavors, roleMap, family, style, coolingLevel, variantMode='base') 
 
 
 getConceptPriority(style, count, coolingLevel) {
-  const base = ['body_forward','commercial_clean','accent_forward','soft_bridge','contrast','layered'];
+  const base = ['base','commercial_clean','body_forward','layered','contrast','soft_bridge'];
   const byStyle = {
     fresh:['fresh_arch','contrast','cool_bloom','body_forward','base'],
     fruity:['commercial_clean','body_forward','layered','contrast','base'],
@@ -3170,6 +3012,333 @@ evaluateMix(items, style, variantMode) {
   clampInt(value, min, max) {
     return Math.max(min, Math.min(max, Math.round(value)));
   }
+};
+
+
+/* v18 methodology manual engine overrides */
+app.getCoolingBudgetByLevel = function(level) {
+  if (level === 'light') return 5;
+  if (level === 'medium') return 8;
+  if (level === 'strong') return 12;
+  return 0;
+};
+
+app.getMethodologyConceptSpecs = function(count, style) {
+  if (count === 2) {
+    return [
+      { key:'body_forward', label:'Body forward', roles:['body','support'], ratios:[70,30] },
+      { key:'balanced', label:'Balanced', roles:['body','support'], ratios:[60,40] },
+      { key:'dual_body', label:'Dual body', roles:['body','support'], ratios:[50,50] }
+    ];
+  }
+  if (count === 4) {
+    return [
+      { key:'body_forward', label:'Body forward', roles:['body','support','accent','bridge'], ratios:[40,30,20,10] },
+      { key:'balanced', label:'Balanced', roles:['body','support','bridge','accent'], ratios:[40,30,20,10] },
+      { key:'fresh_lifted', label:'Fresh lifted', roles:['body','support','accent','bridge'], ratios:[40,25,20,15] },
+      { key:'dessert_rounded', label:'Dessert rounded', roles:['body','rounder','support','accent'], ratios:[40,30,20,10] },
+      { key:'contrast_built', label:'Contrast built', roles:['body','support','contrast','bridge'], ratios:[40,25,20,15] }
+    ];
+  }
+  if (count === 5) {
+    return [
+      { key:'authorial_signature', label:'Authorial signature', roles:['body','support','bridge','accent','rounder'], ratios:[35,20,15,15,15] },
+      { key:'commercial_safe', label:'Commercial safe', roles:['body','support','support','accent','bridge'], ratios:[40,20,15,15,10] },
+      { key:'contrast_built', label:'Contrast built', roles:['body','support','bridge','accent','contrast'], ratios:[35,20,15,15,15] }
+    ];
+  }
+  return [
+    { key:'body_forward', label:'Body forward', roles:['body','support','accent'], ratios:[60,25,15] },
+    { key:'balanced', label:'Balanced', roles:['body','support','accent'], ratios:[50,30,20] },
+    { key:'dual_body', label:'Dual body', roles:['body','support','accent'], ratios:[40,40,20] },
+    { key:'accent_forward', label:'Accent forward', roles:['body','support','accent'], ratios:[50,25,25] },
+    { key:'bridge_softened', label:'Bridge softened', roles:['body','bridge','accent'], ratios:[50,30,20] },
+    { key:'fresh_lifted', label:'Fresh lifted', roles:['body','support','accent'], ratios:[50,25,25] },
+    { key:'dessert_rounded', label:'Dessert rounded', roles:['body','rounder','accent'], ratios:[50,30,20] },
+    { key:'contrast_built', label:'Contrast built', roles:['body','support','contrast'], ratios:[60,15,25] },
+    { key:'commercial_safe', label:'Commercial safe', roles:['body','support','accent'], ratios:[70,20,10] }
+  ];
+};
+
+app.patchFlavorForMethodology = function(flavor) {
+  const f = this.hydrateFlavor({ ...flavor });
+  const a = JSON.parse(JSON.stringify(f.analysis || {}));
+  a.roleSuit = a.roleSuit || {};
+  a.traits = a.traits || {};
+  const n = this.normalizeText((f.brand || '') + ' ' + (f.name || ''));
+  const has = (s) => n.includes(s);
+
+  if (!a.backgroundability) a.backgroundability = Math.max(0, 10 - (a.loudness || 5));
+
+  const setCat = (cat) => { a.category = cat; };
+
+  if (has('киви') || has('kiwi')) {
+    setCat('citrus');
+    a.traits.acidity = Math.max(a.traits.acidity || 0, 7);
+    a.traits.brightness = Math.max(a.traits.brightness || 0, 7);
+    a.loudness = Math.max(a.loudness || 0, 6);
+    a.roleSuit.accent = Math.max(a.roleSuit.accent || 0, 8);
+    a.roleSuit.support = Math.max(a.roleSuit.support || 0, 6);
+  }
+  if (has('кактус') || has('cactus')) {
+    setCat('tropical');
+    a.traits.acidity = Math.max(a.traits.acidity || 0, 6);
+    a.traits.freshness = Math.max(a.traits.freshness || 0, 5);
+    a.loudness = Math.max(a.loudness || 0, 6);
+    a.roleSuit.accent = Math.max(a.roleSuit.accent || 0, 7);
+    a.roleSuit.support = Math.max(a.roleSuit.support || 0, 6);
+  }
+  if (has('feijoa') || has('фейхоа') || has('goa feijoa')) {
+    setCat('tropical');
+    a.traits.green = Math.max(a.traits.green || 0, 6);
+    a.traits.freshness = Math.max(a.traits.freshness || 0, 5);
+    a.traits.acidity = Math.max(a.traits.acidity || 0, 5);
+    a.loudness = Math.max(a.loudness || 0, 5);
+    a.roleSuit.support = Math.max(a.roleSuit.support || 0, 7);
+  }
+  if (has('вишн') || has('cherry') || has('wildberry') || has('вайлдбер')) {
+    setCat('berry');
+    a.traits.berry = Math.max(a.traits.berry || 0, 7);
+    a.traits.brightness = Math.max(a.traits.brightness || 0, 6);
+    a.loudness = Math.max(a.loudness || 0, 6);
+    a.roleSuit.body = Math.max(a.roleSuit.body || 0, 7);
+    a.roleSuit.accent = Math.max(a.roleSuit.accent || 0, 7);
+  }
+  if (has('marula') || has('марула')) {
+    setCat('tropical');
+    a.traits.creaminess = Math.max(a.traits.creaminess || 0, 4);
+    a.traits.sweetness = Math.max(a.traits.sweetness || 0, 6);
+    a.density = Math.max(a.density || 0, 6);
+    a.roleSuit.body = Math.max(a.roleSuit.body || 0, 6);
+    a.roleSuit.rounder = Math.max(a.roleSuit.rounder || 0, 6);
+  }
+  if (has('банан') || has('banana')) {
+    setCat('creamy');
+    a.traits.creaminess = Math.max(a.traits.creaminess || 0, 6);
+    a.traits.sweetness = Math.max(a.traits.sweetness || 0, 6);
+    a.density = Math.max(a.density || 0, 6);
+    a.loudness = Math.max(a.loudness || 0, 5);
+    a.roleSuit.rounder = Math.max(a.roleSuit.rounder || 0, 8);
+  }
+  if (has('кокос') || has('coconut') || has('карамел') || has('caramel') || has('ванил') || has('cream')) {
+    setCat('dessert');
+    a.traits.creaminess = Math.max(a.traits.creaminess || 0, 7);
+    a.traits.sweetness = Math.max(a.traits.sweetness || 0, 6);
+    a.density = Math.max(a.density || 0, 7);
+    a.loudness = Math.max(a.loudness || 0, 5);
+    a.roleSuit.rounder = Math.max(a.roleSuit.rounder || 0, 8);
+    a.roleSuit.body = Math.max(a.roleSuit.body || 0, 7);
+  }
+  if (has('fruittella') || has('frutella') || has('сорбет') || has('sorbet')) {
+    setCat('candy');
+    a.traits.candy = Math.max(a.traits.candy || 0, 7);
+    a.traits.brightness = Math.max(a.traits.brightness || 0, 6);
+    a.loudness = Math.max(a.loudness || 0, 6);
+    a.roleSuit.accent = Math.max(a.roleSuit.accent || 0, 8);
+  }
+  if (has('cola') || has('кола') || has('tea') || has('чай')) {
+    setCat(has('cola') || has('кола') ? 'beverage' : 'tea');
+    a.depth = Math.max(a.depth || 0, 6);
+    a.roleSuit.body = Math.max(a.roleSuit.body || 0, 7);
+    a.roleSuit.support = Math.max(a.roleSuit.support || 0, 6);
+  }
+
+  a.suppressionRisk = Math.max(a.suppressionRisk || 0, Math.round((a.loudness || 5) * 0.7));
+  a.persistence = Math.max(a.persistence || 0, Math.round(((a.density || 5) + (a.loudness || 5)) / 2));
+  f.analysis = a;
+  return f;
+};
+
+app.scoreMethodologyFlavorForRole = function(flavor, role, style, bodyFlavor) {
+  const a = flavor.analysis;
+  const target = this.styleTargets[style] || this.styleTargets.universal;
+  let score = 0;
+  if (role === 'body') {
+    score += (a.roleSuit.body || 0) * 3.0 + (a.density || 0) * 0.9 + (a.versatility || 0) * 0.5;
+    score += (10 - (a.conflictRisk || 0)) * 0.6;
+    score -= (a.traits.cooling || 0) * 1.1;
+    score -= (a.traits.floral || 0) * 0.4;
+  } else if (role === 'support') {
+    score += (a.roleSuit.support || 0) * 2.6 + (a.backgroundability || 0) * 0.8 + (a.versatility || 0) * 0.5;
+  } else if (role === 'bridge') {
+    score += ((a.roleSuit.support || 0) + (a.roleSuit.rounder || 0)) * 1.4 + (a.traits.creaminess || 0) * 0.7 + (a.backgroundability || 0) * 0.6;
+  } else if (role === 'rounder') {
+    score += (a.roleSuit.rounder || 0) * 2.6 + (a.traits.creaminess || 0) * 0.9 + (a.density || 0) * 0.5;
+    score -= (a.traits.cooling || 0) * 0.6;
+  } else if (role === 'accent') {
+    score += (a.roleSuit.accent || 0) * 2.4 + (a.brightness || 0) * 0.7 + (a.loudness || 0) * 0.6;
+  } else if (role === 'contrast') {
+    score += (a.roleSuit.accent || 0) * 1.8 + Math.abs((a.traits.acidity || 0) - target.acidity) * 0.7 + Math.abs((a.traits.freshness || 0) - target.freshness) * 0.6;
+  }
+  if (bodyFlavor) {
+    const pair = this.scorePair(bodyFlavor, flavor);
+    score += pair.score * 1.6 - pair.conflict * 2.0;
+    if (role === 'support' || role === 'bridge' || role === 'rounder') score += pair.shared * 2.2;
+    if (role === 'accent' || role === 'contrast') score += Math.max(0, 3 - pair.shared) * 0.8;
+  }
+  return score;
+};
+
+app.buildMethodologyCoolingFlavor = function(level, style, bodyFlavor) {
+  if (level === 'none') return null;
+  let name = 'Ice Mint';
+  let description = 'Системный охладитель';
+  if (level === 'medium') name = 'Supernova';
+  if (level === 'strong') name = 'Arctic Mix';
+  if (style === 'dessert') name = 'Light Mint';
+  const f = this.patchFlavorForMethodology({
+    id: 'auto-cool-' + level + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,7),
+    brand: 'Auto Cooling',
+    name,
+    description,
+    strength: '',
+    type: 'Охлаждение',
+    weight: ''
+  });
+  f.analysis.category = 'cooling';
+  f.analysis.traits.cooling = level === 'light' ? 4 : level === 'medium' ? 7 : 9;
+  f.analysis.traits.freshness = Math.max(f.analysis.traits.freshness || 0, level === 'light' ? 5 : 7);
+  f.analysis.loudness = level === 'light' ? 4 : 6;
+  f.analysis.roleSuit.cooler = 10;
+  f.analysis.roleSuit.accent = Math.max(f.analysis.roleSuit.accent || 0, 6);
+  return f;
+};
+
+app.buildMethodologyVariant = function(combo, style, coolingLevel, concept, history) {
+  const flavors = combo.map(f => this.patchFlavorForMethodology(f));
+  const usedBodies = (history && history.bodyUsage) || {};
+  const usedCombos = (history && history.comboUsage) || {};
+  const usedFlavors = (history && history.flavorUsage) || {};
+
+  const body = [...flavors].sort((a,b) => {
+    const sa = this.scoreMethodologyFlavorForRole(a, 'body', style, null) - ((usedBodies[a.brand + '|' + a.name] || 0) * 12);
+    const sb = this.scoreMethodologyFlavorForRole(b, 'body', style, null) - ((usedBodies[b.brand + '|' + b.name] || 0) * 12);
+    return sb - sa;
+  })[0];
+  if (!body) return null;
+
+  const remaining = flavors.filter(f => f.id !== body.id);
+  const picked = [body];
+  const assigned = [{ flavor: body, role: 'body' }];
+
+  const conceptRoles = concept.roles.slice(1);
+  conceptRoles.forEach(role => {
+    let best = null, bestScore = -1e9;
+    remaining.forEach(flavor => {
+      if (picked.find(x => x.id === flavor.id)) return;
+      const score = this.scoreMethodologyFlavorForRole(flavor, role, style, body)
+        + ((usedFlavors[flavor.brand + '|' + flavor.name] || 0) === 0 ? 8 : Math.max(0, 6 - (usedFlavors[flavor.brand + '|' + flavor.name] || 0) * 2));
+      if (score > bestScore) {
+        bestScore = score;
+        best = flavor;
+      }
+    });
+    if (best) {
+      picked.push(best);
+      assigned.push({ flavor: best, role });
+    }
+  });
+
+  if (assigned.length !== combo.length) return null;
+
+  const coolingBudget = this.getCoolingBudgetByLevel(coolingLevel);
+  const mainBudget = 100 - coolingBudget;
+  const items = [];
+  let allocated = 0;
+  assigned.forEach((entry, idx) => {
+    const basePct = concept.ratios[idx] || 0;
+    const pct = idx === assigned.length - 1 ? mainBudget - allocated : Math.max(1, Math.round(basePct / 100 * mainBudget));
+    allocated += pct;
+    items.push({ ...entry.flavor, role: entry.role === 'contrast' ? 'accent' : entry.role, percent: pct });
+  });
+  if (allocated !== mainBudget && items.length) items[items.length - 1].percent += mainBudget - allocated;
+
+  if (coolingBudget > 0) {
+    const coolFlavor = this.buildMethodologyCoolingFlavor(coolingLevel, style, body);
+    items.push({ ...coolFlavor, role: 'cooler', percent: coolingBudget });
+  }
+
+  const comboKey = assigned.map(x => x.flavor.brand + '|' + x.flavor.name).sort().join('::') + '|' + concept.key + '|' + coolingLevel;
+  const evaluated = this.evaluateMix(items, style, concept.key);
+  const coverageBonus = assigned.reduce((s, entry) => s + Math.max(0, 4 - (usedFlavors[entry.flavor.brand + '|' + entry.flavor.name] || 0)) * 3, 0);
+  const comboPenalty = (usedCombos[comboKey] || 0) * 22;
+  const bodyPenalty = (usedBodies[body.brand + '|' + body.name] || 0) * 16;
+  const conceptPenalty = ((history && history.conceptUsage && history.conceptUsage[concept.key]) || 0) * 6;
+  evaluated.compatibilityScore = this.clampInt(evaluated.compatibilityScore + coverageBonus - comboPenalty - bodyPenalty - conceptPenalty, 0, 100);
+  evaluated.mixConcept = concept.label;
+  evaluated.styleVariant = concept.label;
+  evaluated.title = this.buildMixName(items, style, concept.key);
+  evaluated._historyComboKey = comboKey;
+  evaluated._historyBodyKey = body.brand + '|' + body.name;
+  evaluated._historyFlavorKeys = assigned.map(x => x.flavor.brand + '|' + x.flavor.name);
+  evaluated._historyConceptKey = concept.key;
+  evaluated._conceptKey = concept.key;
+  return evaluated;
+};
+
+app.rotateManualVariants = function(variants, selected, targetCount, style, coolingLevel, resultCount) {
+  if (!variants.length) return [];
+  const signature = this.buildGenerationSignature(selected, targetCount, style, coolingLevel);
+  const history = this.state.generationHistory[signature] || { cursor:0, flavorUsage:{}, bodyUsage:{}, comboUsage:{}, conceptUsage:{} };
+  const total = variants.length;
+  const take = Math.min(resultCount, total);
+  const start = history.cursor % total;
+  const out = [];
+  for (let i = 0; i < take; i++) out.push(variants[(start + i) % total]);
+  history.cursor = (start + take) % total;
+  out.forEach(v => {
+    history.comboUsage[v._historyComboKey] = (history.comboUsage[v._historyComboKey] || 0) + 1;
+    history.bodyUsage[v._historyBodyKey] = (history.bodyUsage[v._historyBodyKey] || 0) + 1;
+    history.conceptUsage[v._historyConceptKey] = (history.conceptUsage[v._historyConceptKey] || 0) + 1;
+    (v._historyFlavorKeys || []).forEach(k => history.flavorUsage[k] = (history.flavorUsage[k] || 0) + 1);
+  });
+  this.state.generationHistory[signature] = history;
+  this.saveData && this.saveData();
+  return out;
+};
+
+app.buildManualResults = function(selected, style, coolingLevel, fixedComposition, forceAlternatives = false, targetCount = null, resultCount = 3) {
+  const workingFlavors = (selected || []).map(f => this.patchFlavorForMethodology(f));
+  const desiredCount = this.clampInt(targetCount || workingFlavors.length, 2, Math.min(5, workingFlavors.length));
+  const signature = this.buildGenerationSignature(workingFlavors, desiredCount, style, coolingLevel);
+  const history = this.state.generationHistory[signature] || { cursor:0, flavorUsage:{}, bodyUsage:{}, comboUsage:{}, conceptUsage:{} };
+  const combos = this.getCombinations(workingFlavors, desiredCount);
+  const concepts = this.getMethodologyConceptSpecs(desiredCount, style);
+
+  const candidates = [];
+  combos.forEach(combo => {
+    concepts.forEach(concept => {
+      const variant = this.buildMethodologyVariant(combo, style, coolingLevel, concept, history);
+      if (variant) candidates.push(variant);
+    });
+  });
+
+  const unique = [];
+  const seen = new Set();
+  candidates
+    .sort((a,b) => b.compatibilityScore - a.compatibilityScore)
+    .forEach(v => {
+      const k = v.items.map(i => `${i.brand}|${i.name}|${i.role}|${i.percent}`).join('||');
+      if (!seen.has(k)) {
+        seen.add(k);
+        unique.push(v);
+      }
+    });
+
+  const diversified = [];
+  const usedBodies = new Set();
+  const usedConcepts = new Set();
+  unique.forEach(v => {
+    const sameBody = usedBodies.has(v._historyBodyKey);
+    const sameConcept = usedConcepts.has(v._historyConceptKey);
+    if (diversified.length < Math.max(resultCount * 4, 8) && (!sameBody || !sameConcept || diversified.length < resultCount)) {
+      diversified.push(v);
+      usedBodies.add(v._historyBodyKey);
+      usedConcepts.add(v._historyConceptKey);
+    }
+  });
+
+  return this.rotateManualVariants(diversified.length ? diversified : unique, workingFlavors, desiredCount, style, coolingLevel, resultCount);
 };
 
 window.app = app;

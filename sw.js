@@ -1,23 +1,43 @@
-const CACHE_NAME = 'hookah-mixology-v17-logic';
-const APP_SHELL = ['./','./index.html','./app.js','./manifest.webmanifest','./data/bundled_base.json'];
-self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).catch(() => null)); self.skipWaiting(); });
-self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+const CACHE_NAME = 'hookah-mixology-v18-methodology';
+const APP_SHELL = ['./', './index.html', './app.js', './data/bundled_base.json'];
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).catch(() => null)
+  );
+  self.skipWaiting();
+});
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   if (req.mode === 'navigate') {
-    event.respondWith(fetch(req).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
-      return response;
-    }).catch(() => caches.match('./index.html')));
+    event.respondWith(
+      fetch(req)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
     return;
   }
-  event.respondWith(caches.match(req).then(cached => cached || fetch(req).then(response => {
-    if (response && response.status === 200) {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
-    }
-    return response;
-  }).catch(() => cached)));
+  event.respondWith(
+    caches.match(req).then(cached =>
+      cached ||
+      fetch(req).then(response => {
+        if (response && response.status === 200) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+        }
+        return response;
+      }).catch(() => cached)
+    )
+  );
 });
